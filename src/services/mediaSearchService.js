@@ -391,34 +391,41 @@ export function getServerNameFromUrl(url = '') {
 }
 
 /**
- * Patrones y dominios de redes publicitarias, popunders y rastreadores
+ * Patrones y dominios de redes publicitarias, popunders y rastreadores (simulación AdGuard DNS)
  */
 export const AD_PATTERNS = [
+  'adguard',
   'doubleclick.net',
   'googlesyndication.com',
   'google-analytics.com',
   'googleads',
-  'adservice.google.com',
-  'adnxs.com',
+  'googleadservices',
+  'pagead',
+  'partnerads',
+  'adservice',
+  'adnxs',
   'adsterra',
   'propellerads',
+  'propeller',
   'popads',
   'popcash',
   'clickadu',
   'exoclick',
   'trafficjunky',
   'juicyads',
-  'mgid.com',
-  'taboola.com',
-  'outbrain.com',
-  'revcontent.com',
+  'mgid',
+  'taboola',
+  'outbrain',
+  'revcontent',
   'admaven',
+  'ad-maven',
   'hilltopads',
   'monetag',
   'yllix',
   'bidvertiser',
   'notix',
   'onclickmega',
+  'onclick',
   'directrev',
   'zergnet',
   'adk2x',
@@ -426,7 +433,7 @@ export const AD_PATTERNS = [
   'adform',
   'smartadserver',
   'rubiconproject',
-  'openx.net',
+  'openx',
   'pubmatic',
   'adcolony',
   'inmobi',
@@ -437,8 +444,8 @@ export const AD_PATTERNS = [
   'coinhive',
   'crypto-loot',
   'aditude',
-  'teads.tv',
-  'criteo.com',
+  'teads',
+  'criteo',
   'adtrue',
   'adcash',
   'bidvol',
@@ -448,13 +455,13 @@ export const AD_PATTERNS = [
   'richaudience',
   'moatads',
   'yieldmo',
-  'gumgum.com',
-  'undertone.com',
-  'sovrn.com',
-  'infolinks.com',
-  'alwingulla.com',
-  'e-planning.net',
-  'histats.com',
+  'gumgum',
+  'undertone',
+  'sovrn',
+  'infolinks',
+  'alwingulla',
+  'e-planning',
+  'histats',
   'whos.amung.us',
   'effectivemeasure',
   'blockadblock',
@@ -462,7 +469,31 @@ export const AD_PATTERNS = [
   'adblock-detector',
   'ad-shield',
   'adprotect',
+  'adkeeper',
+  'adkernel',
+  'adblade',
+  'adfox',
+  'trafficfactory',
+  'realsrv',
+  'syndication',
+  'adserver',
+  'adservices',
+  'adhigh',
+  'pubmine',
+  'adnuntius',
+  'optmd',
+  'adx',
 ];
+
+/**
+ * Determina si una URL pertenece a una red de anuncios (estilo AdGuard DNS)
+ */
+export function isAdUrl(url = '') {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase();
+  if (isVideoServerUrl(lower) || isDirectVideoUrl(lower)) return false;
+  return AD_PATTERNS.some((pat) => lower.includes(pat));
+}
 
 /**
  * Filtra y elimina scripts de anuncios, iframes publicitarios y contenedores de spam del HTML
@@ -570,45 +601,130 @@ export function filterHtmlAds(rawHtml = '') {
  * Genera el script inyectado para detectar videos, capturar clics y bloquear anuncios/popups
  */
 function getInjectedScript(enableAdBlock = true) {
-  const adBlockScriptPart = enableAdBlock ? `
-  // ── AdBlocker & Anti-Popups Shield ──
-  var adDomains = [
-    'doubleclick', 'googlesyndication', 'google-analytics', 'googleads',
-    'adservice', 'adnxs', 'adsterra', 'propellerads', 'popads',
-    'popcash', 'clickadu', 'exoclick', 'trafficjunky', 'juicyads', 'mgid',
-    'taboola', 'outbrain', 'revcontent', 'admaven', 'hilltopads',
-    'monetag', 'yllix', 'bidvertiser', 'notix', 'onclickmega', 'directrev',
-    'zergnet', 'adk2x', 'ad-delivery', 'adform', 'smartadserver', 'rubiconproject',
-    'openx', 'pubmatic', 'adcolony', 'inmobi', 'bet365', '1xbet', 'melbet',
-    'alwingulla'
+  return `
+<script>
+(function(){
+  function notify(type, data) {
+    try { window.parent.postMessage(Object.assign({ type: type }, data), '*'); } catch(e) {}
+  }
+
+  var videoDomains = [
+    'streamwish', 'sfastwish', 'awish', 'wishembed', 'dwish',
+    'mega.nz', 'mega.co.nz',
+    'vidhide', 'vidhidevip', 'vidhidepro',
+    'voe.sx', 'voe-unblock',
+    'bysekoze.com', 'filemoon',
+    'mixdrop', 'mixdrop.top', 'mixdrop.co',
+    'mp4upload.com',
+    'streamtape.com', 'streamtape.to',
+    'doodstream', 'dood.', 'dsvplay', 'ds2play',
+    'ok.ru', 'odnoklassniki',
+    'yourupload.com',
+    'fembed', 'feurl',
+    '1fichier.com',
+    'jkplayer', 'jkanime.net/jk.php', 'jkanime.net/jkplayer',
+    'desu-stream', 'desu.', 'solidfiles',
+    'sendvid', 'vidguard', 'vgfplay',
+    'uqload', 'upstream', 'streamlare', 'netu'
   ];
+
+  var adDomains = [
+    'adguard', 'doubleclick', 'googlesyndication', 'google-analytics', 'googleads',
+    'googleadservices', 'pagead', 'partnerads', 'adservice', 'adnxs', 'adsterra',
+    'propellerads', 'propeller', 'popads', 'popcash', 'clickadu', 'exoclick',
+    'trafficjunky', 'juicyads', 'mgid', 'taboola', 'outbrain', 'revcontent',
+    'admaven', 'ad-maven', 'hilltopads', 'monetag', 'yllix', 'bidvertiser',
+    'notix', 'onclickmega', 'onclick', 'directrev', 'zergnet', 'adk2x',
+    'ad-delivery', 'adform', 'smartadserver', 'rubiconproject', 'openx',
+    'pubmatic', 'adcolony', 'inmobi', 'bet365', '1xbet', 'melbet', 'linebet',
+    'coinhive', 'crypto-loot', 'aditude', 'teads', 'criteo', 'adtrue', 'adcash',
+    'bidvol', 'vidoomy', 'showads', 'serving-sys', 'richaudience', 'moatads',
+    'yieldmo', 'gumgum', 'undertone', 'sovrn', 'infolinks', 'alwingulla',
+    'e-planning', 'histats', 'whos.amung.us', 'effectivemeasure', 'blockadblock',
+    'fuckadblock', 'adblock-detector', 'ad-shield', 'adprotect', 'adkeeper',
+    'adkernel', 'adblade', 'adfox', 'trafficfactory', 'realsrv', 'syndication',
+    'adserver', 'adservices', 'adhigh', 'pubmine', 'adnuntius', 'optmd', 'adx'
+  ];
+
+  function isVideoUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    var lower = url.toLowerCase();
+    for (var i = 0; i < videoDomains.length; i++) {
+      if (lower.indexOf(videoDomains[i]) !== -1) return true;
+    }
+    if (lower.indexOf('/embed/') !== -1 || lower.indexOf('/e/') !== -1 || lower.indexOf('embed.html') !== -1 || lower.indexOf('embed-') !== -1 || lower.indexOf('.m3u8') !== -1) {
+      return true;
+    }
+    var clean = lower.split('?')[0].split('#')[0];
+    if (clean.endsWith('.mp4') || clean.endsWith('.webm') || clean.endsWith('.ogg')) return true;
+    return false;
+  }
 
   function isAdDomain(str) {
     if (!str || typeof str !== 'string') return false;
     var s = str.toLowerCase();
+    if (isVideoUrl(s)) return false;
     for (var a = 0; a < adDomains.length; a++) {
       if (s.indexOf(adDomains[a]) !== -1) return true;
     }
     return false;
   }
 
-  // Anular window.open para prevenir popups y ventanas emergentes publicitarias
+  function getServerName(url, def) {
+    if (!url) return def || 'Servidor';
+    var lower = url.toLowerCase();
+    for (var i = 0; i < videoDomains.length; i++) {
+      if (lower.indexOf(videoDomains[i]) !== -1) {
+        var d = videoDomains[i].split('.')[0];
+        return d.charAt(0).toUpperCase() + d.slice(1);
+      }
+    }
+    return def || 'Servidor';
+  }
+
+  // 1. Bloquear popups publicitarios (window.open)
   try {
     window.open = function(u) {
       if (u && isVideoUrl(u)) {
         notify('SERVER_SELECTED', { url: u, server: getServerName(u), title: document.title });
+      } else {
+        console.log('[AdGuard DNS] Bloqueado popup window.open:', u);
       }
       return null;
     };
   } catch(_) {}
 
-  // Suprimir spam de alertas
+  // 2. Prevenir redirecciones forzadas por scripts de anuncios
+  try {
+    var origAssign = window.location.assign;
+    if (origAssign) {
+      window.location.assign = function(u) {
+        if (isAdDomain(u)) {
+          console.log('[AdGuard DNS] Bloqueado location.assign:', u);
+          return;
+        }
+        origAssign.call(window.location, u);
+      };
+    }
+    var origReplace = window.location.replace;
+    if (origReplace) {
+      window.location.replace = function(u) {
+        if (isAdDomain(u)) {
+          console.log('[AdGuard DNS] Bloqueado location.replace:', u);
+          return;
+        }
+        origReplace.call(window.location, u);
+      };
+    }
+  } catch(_) {}
+
+  // 3. Suprimir spam de alertas
   try {
     window.alert = function() {};
     window.confirm = function() { return false; };
   } catch(_) {}
 
-  // Eliminar capas invisibles de clickjacking / overlays que activan anuncios al tocar
+  // 4. Eliminar capas invisibles de clickjacking / overlays
   function removeAdOverlays() {
     try {
       var all = document.querySelectorAll('div, a, span');
@@ -630,14 +746,14 @@ function getInjectedScript(enableAdBlock = true) {
   }
   setInterval(removeAdOverlays, 1000);
 
-  // Interceptar fetch y XHR para bloquear conexiones a redes de anuncios
+  // 5. Interceptar fetch y XHR para bloquear conexiones a redes de anuncios (AdGuard DNS)
   try {
     var origFetch = window.fetch;
     if (origFetch) {
       window.fetch = function(input, init) {
         var u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
         if (isAdDomain(u)) {
-          return Promise.reject(new Error('Blocked by AdBlock'));
+          return Promise.reject(new Error('Blocked by AdGuard DNS'));
         }
         return origFetch.apply(this, arguments);
       };
@@ -651,65 +767,15 @@ function getInjectedScript(enableAdBlock = true) {
       return origXhr.apply(this, arguments);
     };
   } catch(_) {}
-` : '';
-
-  return `
-<script>
-(function(){
-  function notify(type, data) {
-    try { window.parent.postMessage(Object.assign({ type: type }, data), '*'); } catch(e) {}
-  }
-` + adBlockScriptPart + `
-  var videoDomains = [
-    'streamwish', 'sfastwish', 'awish', 'wishembed', 'dwish',
-    'mega.nz', 'mega.co.nz',
-    'vidhide', 'vidhidevip', 'vidhidepro',
-    'voe.sx', 'voe-unblock',
-    'bysekoze.com', 'filemoon',
-    'mixdrop', 'mixdrop.top', 'mixdrop.co',
-    'mp4upload.com',
-    'streamtape.com', 'streamtape.to',
-    'doodstream', 'dood.', 'dsvplay', 'ds2play',
-    'ok.ru', 'odnoklassniki',
-    'yourupload.com',
-    'fembed', 'feurl',
-    '1fichier.com',
-    'jkplayer', 'jkanime.net/jk.php', 'jkanime.net/jkplayer',
-    'desu-stream', 'desu.', 'solidfiles',
-    'sendvid', 'vidguard', 'vgfplay',
-    'uqload', 'upstream', 'streamlare', 'netu'
-  ];
-
-  function isVideoUrl(url) {
-    if (!url || typeof url !== 'string') return false;
-    var lower = url.toLowerCase();
-    for (var i = 0; i < videoDomains.length; i++) {
-      if (lower.indexOf(videoDomains[i]) !== -1) return true;
-    }
-    if (lower.indexOf('/embed/') !== -1 || lower.indexOf('/e/') !== -1 || lower.indexOf('embed.html') !== -1 || lower.indexOf('embed-') !== -1 || lower.indexOf('.m3u8') !== -1) {
-      return true;
-    }
-    var clean = lower.split('?')[0].split('#')[0];
-    if (clean.endsWith('.mp4') || clean.endsWith('.webm') || clean.endsWith('.ogg')) return true;
-    return false;
-  }
-
-  function getServerName(url, def) {
-    if (!url) return def || 'Servidor';
-    var lower = url.toLowerCase();
-    for (var i = 0; i < videoDomains.length; i++) {
-      if (lower.indexOf(videoDomains[i]) !== -1) {
-        var d = videoDomains[i].split('.')[0];
-        return d.charAt(0).toUpperCase() + d.slice(1);
-      }
-    }
-    return def || 'Servidor';
-  }
 
   function intercept(url) {
     if (!url) return;
     try {
       var abs = new URL(url, document.baseURI).href;
+      if (isAdDomain(abs)) {
+        console.log('[AdGuard DNS] Bloqueada navegación hacia anuncio:', abs);
+        return false;
+      }
       if (isVideoUrl(abs)) {
         notify('SERVER_SELECTED', { url: abs, server: getServerName(abs), title: document.title });
         return false;
@@ -727,6 +793,13 @@ function getInjectedScript(enableAdBlock = true) {
     var rawHref = el.getAttribute('href') || '';
     var dataSrc = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url') || '';
     var testUrl = dataSrc || el.href || rawHref;
+
+    if (testUrl && isAdDomain(testUrl)) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('[AdGuard DNS] Clic publicitario bloqueado:', testUrl);
+      return false;
+    }
 
     // Verificar si es un botón de servidor conocido en jkanime, animeflv, etc.
     if (el.classList && (el.classList.contains('servers') || el.classList.contains('btn-show') || el.classList.contains('server-item') || el.closest('.bg-servers, #collapseServers, .CapiTnv'))) {

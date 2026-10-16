@@ -30,6 +30,7 @@ import {
   isDirectVideoUrl,
   getServerNameFromUrl,
   resolveMediaStream,
+  isAdUrl,
 } from '../services/mediaSearchService';
 
 const YT_CATEGORIES = [
@@ -163,12 +164,31 @@ export function MediaSelectorModal({
 
   // ── Navegación Web ───────────────────────────────────────────────
 
+  // Sincronizar historial para que el gesto de retroceso de Android cierre el navegador sin salir de la app
+  useEffect(() => {
+    if (!isOpen) return;
+    window.history.pushState({ modal: 'media-selector' }, '');
+    const onPopState = () => {
+      onClose && onClose();
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, [isOpen, onClose]);
+
   // Navegar a una página web real (dentro del iframe)
   const navigateToUrl = async (targetUrl, pushHistory = true, useAdBlock = adBlockEnabled) => {
     if (!targetUrl) return;
     let url = targetUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = `https://${url}`;
+    }
+
+    // Bloqueo AdGuard DNS: evitar navegar a sitios de anuncios
+    if (useAdBlock && isAdUrl(url)) {
+      console.warn('[AdGuard DNS] Bloqueada navegación a anuncio:', url);
+      return;
     }
 
     setAddressInput(url);
@@ -637,7 +657,7 @@ export function MediaSelectorModal({
                 <ExternalLink size={16} />
               </button>
 
-              {/* Botón Escudo AdBlock */}
+              {/* Botón Escudo AdGuard DNS */}
               <button
                 type="button"
                 onClick={() => {
@@ -645,7 +665,7 @@ export function MediaSelectorModal({
                   setAdBlockEnabled(next);
                   if (currentUrl) navigateToUrl(currentUrl, false, next);
                 }}
-                title={adBlockEnabled ? 'Bloqueador de anuncios y popups: ACTIVO (clic para pausar)' : 'Bloqueador de anuncios: PAUSADO (clic para activar)'}
+                title={adBlockEnabled ? 'Filtro AdGuard DNS y Anti-Popups: ACTIVO (clic para pausar)' : 'Filtro AdGuard DNS: PAUSADO (clic para activar)'}
                 style={{
                   ...navBtnBase,
                   background: adBlockEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
@@ -661,7 +681,31 @@ export function MediaSelectorModal({
               >
                 {adBlockEnabled ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
                 <span style={{ fontSize: '0.68rem', letterSpacing: '0.02em', display: 'inline' }}>
-                  {adBlockEnabled ? 'AdBlock' : 'Off'}
+                  {adBlockEnabled ? 'AdGuard DNS' : 'Sin filtro'}
+                </span>
+              </button>
+
+              {/* Botón Cerrar Navegador y volver a la Sala */}
+              <button
+                type="button"
+                onClick={onClose}
+                title="Cerrar navegador y volver a la sala"
+                style={{
+                  ...navBtnBase,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#f87171',
+                  padding: '4px 8px',
+                  borderRadius: 14,
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                <X size={14} />
+                <span style={{ fontSize: '0.68rem', display: 'inline' }}>
+                  Salir
                 </span>
               </button>
 

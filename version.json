@@ -1,10 +1,10 @@
 {
-  "version": "1.0.4",
-  "buildNumber": 5,
+  "version": "1.0.5",
+  "buildNumber": 6,
   "type": "ota",
-  "checksum": "e767aa98381934895d8696f61bfec153a679dd6ff8c542b8dd378b04487a8b90",
-  "title": "Parche v1.0.4 disponible",
-  "changelog": "Solución para amigos agregados y navegación con botón de retroceso",
+  "checksum": "af270d7f6fe0f9ab883d3ca5e45ae4dfb2b04b7efa74dc32d9854943d80aea20",
+  "title": "Parche v1.0.5 disponible",
+  "changelog": "Filtro AdGuard DNS activo, bloqueo estricto de anuncios y corrección de gestos de retroceso",
   "bundleUrl": "https://raw.githubusercontent.com/WakysGood/WF-Watch-Friends/main/updates/dist.zip",
   "apkUrl": "https://github.com/WakysGood/WF-Watch-Friends/releases/latest/download/WF-Watch-Friends.apk"
 }

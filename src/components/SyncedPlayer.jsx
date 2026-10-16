@@ -296,21 +296,40 @@ export function SyncedPlayer({
 
         {isEmbed && (
           <>
+            <span
+              style={{
+                fontSize: '0.68rem',
+                color: '#10b981',
+                background: 'rgba(16, 185, 129, 0.12)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                padding: '2px 7px',
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontWeight: 600,
+              }}
+            >
+              <ShieldCheck size={11} /> AdGuard DNS
+            </span>
             <button
               onClick={() => setEmbedKey(k => k + 1)}
-              title="Recargar reproductor del servidor"
+              title="Recargar reproductor (limpia anuncios residuales)"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                color: 'var(--text-muted)',
-                padding: '2px 4px',
-                borderRadius: 4,
+                color: '#00d2ff',
+                padding: '3px 8px',
+                borderRadius: 6,
                 cursor: 'pointer',
-                background: 'none',
-                border: 'none',
+                background: 'rgba(0, 210, 255, 0.1)',
+                border: '1px solid rgba(0, 210, 255, 0.25)',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                gap: 4,
               }}
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={11} /> Limpiar Anuncio
             </button>
             <button
               onClick={() => openInSystemBrowser(media.url)}

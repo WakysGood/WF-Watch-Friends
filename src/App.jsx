@@ -826,13 +826,24 @@ export default function App() {
       }
     };
 
+    // 4. Gesto de retroceso de Android en WebView (evento popstate HTML5)
+    const onPopState = () => {
+      const handled = handleBackAction();
+      if (handled) {
+        // Re-insertar ancla en la pila de historial para que el próximo gesto tampoco cierre la app
+        window.history.pushState({ app: 'watchfriends-guard' }, '');
+      }
+    };
+
     document.addEventListener('backbutton', onBackButton, false);
     window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('popstate', onPopState);
 
     return () => {
       appListener && appListener.remove && appListener.remove();
       document.removeEventListener('backbutton', onBackButton);
       window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('popstate', onPopState);
     };
   }, [
     isMediaModalOpen,
@@ -842,6 +853,14 @@ export default function App() {
     location.pathname,
     navigate,
   ]);
+
+  // Asegurar pila de historial activa desde el inicio
+  useEffect(() => {
+    try {
+      window.history.replaceState({ app: 'root' }, '');
+      window.history.pushState({ app: 'main' }, '');
+    } catch (_) {}
+  }, []);
 
   if (isAuthLoading) {
     return (
