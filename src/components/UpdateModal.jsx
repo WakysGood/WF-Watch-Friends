@@ -73,6 +73,27 @@ export function UpdateModal({
     }
   };
 
+  const handleFallbackApk = async () => {
+    setIsUpdating(true);
+    setProgress(5);
+    setError(null);
+    setStatusText('Descargando archivo APK...');
+    try {
+      await applyApkUpdate(updateInfo.apkUrl, (pct) => {
+        setProgress(pct);
+        if (pct >= 90) {
+          setStatusText('Abriendo instalador del sistema...');
+        } else {
+          setStatusText(`Descargando APK: ${Math.round(pct)}%`);
+        }
+      });
+      setIsUpdating(false);
+    } catch (err) {
+      setError(err.message || 'Error al descargar APK');
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -329,22 +350,47 @@ export function UpdateModal({
               </p>
             </div>
           ) : error ? (
-            <div
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: '#fca5a5',
-                fontSize: '0.78rem',
-                marginBottom: 16,
-              }}
-            >
-              <AlertCircle size={16} flexShrink={0} />
-              <span>{error}</span>
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: '#fca5a5',
+                  fontSize: '0.78rem',
+                  marginBottom: updateInfo.apkUrl ? 10 : 0,
+                }}
+              >
+                <AlertCircle size={16} flexShrink={0} />
+                <span>{error}</span>
+              </div>
+              {updateInfo.apkUrl && (
+                <button
+                  onClick={handleFallbackApk}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    borderRadius: 10,
+                    background: 'rgba(59, 130, 246, 0.15)',
+                    border: '1px solid rgba(59, 130, 246, 0.35)',
+                    color: '#60a5fa',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <Download size={14} />
+                  Descargar APK completa en su lugar
+                </button>
+              )}
             </div>
           ) : null}
         </div>

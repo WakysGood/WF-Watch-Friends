@@ -53,6 +53,23 @@ if (customChangelog) {
   versionData.changelog = customChangelog;
 }
 
+// Guardar version.json antes de compilar para que Vite empaquete la versión correcta
+fs.writeFileSync(
+  versionFilePath,
+  JSON.stringify(versionData, null, 2) + '\n',
+  'utf-8'
+);
+
+// Sincronizar también package.json
+const packageJsonPath = path.join(rootDir, 'package.json');
+if (fs.existsSync(packageJsonPath)) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    pkg.version = nextVersion;
+    fs.writeFileSync(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+  } catch (_) {}
+}
+
 console.log(`\n🚀 Preparando actualización tipo [${updateType.toUpperCase()}]`);
 console.log(`   Versión anterior: v${oldVersion}`);
 console.log(`   Nueva versión:   v${nextVersion} (Build ${nextBuild})\n`);

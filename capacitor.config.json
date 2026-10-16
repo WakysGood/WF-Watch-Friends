@@ -12,7 +12,8 @@
       "enabled": true
     },
     "CapacitorUpdater": {
-      "autoUpdate": false
+      "autoUpdate": false,
+      "statsUrl": ""
     }
   }
 }

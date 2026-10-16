@@ -1,12 +1,13 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import versionData from '../../version.json';
 
 const ApkInstaller = registerPlugin('ApkInstaller');
 const isNative = Capacitor.isNativePlatform();
 
-export const CURRENT_APP_VERSION = '1.0.0';
-export const CURRENT_BUILD_NUMBER = 1;
+export const CURRENT_APP_VERSION = versionData.version || '1.0.1';
+export const CURRENT_BUILD_NUMBER = Number(versionData.buildNumber) || 2;
 export const GITHUB_VERSION_URL =
   'https://raw.githubusercontent.com/WakysGood/WF-Watch-Friends/main/version.json';
 
