@@ -1,10 +1,10 @@
 {
-  "version": "1.0.3",
-  "buildNumber": 4,
+  "version": "1.0.4",
+  "buildNumber": 5,
   "type": "ota",
-  "checksum": "c721715da41a8a36a1e5d110e46b4bbe266ea4b2d5cf5d5d072d706cb06af961",
-  "title": "Parche v1.0.3 disponible",
-  "changelog": "Bloqueador de anuncios integrado y protección anti-popups en el navegador web",
+  "checksum": "e767aa98381934895d8696f61bfec153a679dd6ff8c542b8dd378b04487a8b90",
+  "title": "Parche v1.0.4 disponible",
+  "changelog": "Solución para amigos agregados y navegación con botón de retroceso",
   "bundleUrl": "https://raw.githubusercontent.com/WakysGood/WF-Watch-Friends/main/updates/dist.zip",
   "apkUrl": "https://github.com/WakysGood/WF-Watch-Friends/releases/latest/download/WF-Watch-Friends.apk"
 }

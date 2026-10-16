@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Settings,
@@ -8,10 +9,12 @@ import {
   RefreshCw,
   Sparkles,
   CheckCircle2,
+  ArrowLeft,
 } from 'lucide-react';
 import { CURRENT_APP_VERSION } from '../services/updateService';
 
 export function SettingsPage({ onCheckUpdate }) {
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
   const [checkStatus, setCheckStatus] = useState(null);
 
@@ -55,6 +58,22 @@ export function SettingsPage({ onCheckUpdate }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <button
+          onClick={() => navigate('/lobby')}
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#e2e8f0',
+            borderRadius: 8,
+            padding: '6px 8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          title="Volver al lobby"
+        >
+          <ArrowLeft size={16} />
+        </button>
         <Settings size={20} color="#00d2ff" />
         <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
           Configuración

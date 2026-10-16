@@ -46,16 +46,16 @@ export function AddFriendModal({ isOpen, onClose, currentUser, sentRequests = []
     }
   };
 
-  const handleSendRequest = async () => {
+  const handleAddFriend = async () => {
     if (!foundUser) return;
     setIsSending(true);
     setErrorMsg('');
 
     try {
-      await authService.sendFriendRequest(currentUser, foundUser);
+      await authService.addFriendDirectly(currentUser, foundUser);
       setRequestSent(true);
     } catch (err) {
-      setErrorMsg('Error al enviar la solicitud.');
+      setErrorMsg('Error al agregar amigo: ' + (err.message || ''));
     } finally {
       setIsSending(false);
     }
@@ -220,22 +220,18 @@ export function AddFriendModal({ isOpen, onClose, currentUser, sentRequests = []
 
                 {/* Botón de acción */}
                 <div>
-                  {isAlreadyFriend ? (
-                    <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Check size={14} /> Ya son amigos
-                    </span>
-                  ) : requestSent || isAlreadyRequested ? (
-                    <span style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 700 }}>
-                      Pendiente
+                  {isAlreadyFriend || requestSent ? (
+                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Check size={15} /> Ya son amigos
                     </span>
                   ) : (
                     <button
-                      onClick={handleSendRequest}
+                      onClick={handleAddFriend}
                       disabled={isSending}
                       className="glow-btn"
                       style={{ padding: '8px 14px', fontSize: '0.8rem' }}
                     >
-                      <UserPlus size={14} /> {isSending ? 'Enviando...' : 'Enviar Solicitud'}
+                      <UserPlus size={14} /> {isSending ? 'Agregando...' : 'Agregar Amigo'}
                     </button>
                   )}
                 </div>

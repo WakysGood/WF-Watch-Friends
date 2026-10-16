@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Film, LogOut, Circle } from 'lucide-react';
+import { Film, LogOut, Circle, ArrowLeft } from 'lucide-react';
 import { GiphyPickerModal } from '../components/GiphyPickerModal';
 import { authService } from '../services/firebase';
 
 export function ProfilePage({ user, onLogout }) {
+  const navigate = useNavigate();
   const [photo, setPhoto] = useState(user.photoURL || '');
   const [isGiphyOpen, setIsGiphyOpen] = useState(false);
 
@@ -22,12 +24,34 @@ export function ProfilePage({ user, onLogout }) {
       style={{
         width: '100%',
         maxWidth: 420,
-        padding: '28px 20px',
+        padding: '24px 20px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
       }}
     >
+      {/* Botón Volver */}
+      <div style={{ width: '100%', display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+        <button
+          onClick={() => navigate('/lobby')}
+          style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            color: '#e2e8f0',
+            borderRadius: 8,
+            padding: '6px 10px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: '0.78rem',
+            fontWeight: 600,
+          }}
+          title="Volver al lobby"
+        >
+          <ArrowLeft size={16} /> Volver
+        </button>
+      </div>
       {/* Avatar GIF interactivo */}
       <div
         onClick={() => setIsGiphyOpen(true)}

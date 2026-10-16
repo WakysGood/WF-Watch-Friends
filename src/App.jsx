@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { App as CapApp } from '@capacitor/app';
 import { peerService } from './services/peerService';
 import { authService } from './services/firebase';
 import { AuthView } from './components/AuthView';
@@ -20,6 +21,8 @@ import { UpdateModal } from './components/UpdateModal';
 import { checkForUpdate, notifyAppReady } from './services/updateService';
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [authUser, setAuthUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('auth'); // 'auth' | 'lobby' | 'room'
@@ -751,6 +754,94 @@ export default function App() {
     setAuthUser(null);
     setCurrentScreen('auth');
   };
+
+  // ── Manejo global de botón de retroceso (Android Hardware / Gestos / Popstate) ──
+  useEffect(() => {
+    const handleBackAction = () => {
+      // 1. Si el modal del navegador web / YouTube está abierto, cerrarlo
+      if (isMediaModalOpen) {
+        setIsMediaModalOpen(false);
+        return true;
+      }
+
+      // 2. Si el modal de actualización está abierto, cerrarlo
+      if (isUpdateModalOpen) {
+        setIsUpdateModalOpen(false);
+        return true;
+      }
+
+      // 3. Si el modal de configuración de sala está abierto, cerrarlo
+      if (isSettingsModalOpen) {
+        setIsSettingsModalOpen(false);
+        return true;
+      }
+
+      // 4. Si el usuario está dentro de una sala en reproducción ('room'), salir al lobby
+      if (currentScreen === 'room') {
+        const confirmExit = window.confirm('¿Deseas salir de la sala de reproducción?');
+        if (confirmExit) {
+          handleLeaveRoom();
+        }
+        return true;
+      }
+
+      // 5. Si está en una sub-página (/friends, /chats, /profile, /settings), volver a /lobby
+      if (location.pathname !== '/lobby' && location.pathname !== '/') {
+        navigate('/lobby');
+        return true;
+      }
+
+      // Si ya está en /lobby y no hay modales abiertos, permitir la acción por defecto
+      return false;
+    };
+
+    // 1. Capacitor Nativo Plugin listener (cuando @capacitor/app esté disponible)
+    let appListener = null;
+    try {
+      appListener = CapApp.addListener('backButton', ({ canGoBack }) => {
+        const handled = handleBackAction();
+        if (!handled && canGoBack) {
+          window.history.back();
+        }
+      });
+    } catch (_) {}
+
+    // 2. Document 'backbutton' listener de Cordova/Capacitor
+    const onBackButton = (e) => {
+      const handled = handleBackAction();
+      if (handled) {
+        e.preventDefault && e.preventDefault();
+        e.stopPropagation && e.stopPropagation();
+      }
+    };
+
+    // 3. Tecla física / keydown en WebView (KEYCODE_BACK / keyCode 4 / "GoBack")
+    const onKeyDown = (e) => {
+      if (e.key === 'GoBack' || e.keyCode === 4) {
+        const handled = handleBackAction();
+        if (handled) {
+          e.preventDefault && e.preventDefault();
+          e.stopPropagation && e.stopPropagation();
+        }
+      }
+    };
+
+    document.addEventListener('backbutton', onBackButton, false);
+    window.addEventListener('keydown', onKeyDown, true);
+
+    return () => {
+      appListener && appListener.remove && appListener.remove();
+      document.removeEventListener('backbutton', onBackButton);
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [
+    isMediaModalOpen,
+    isUpdateModalOpen,
+    isSettingsModalOpen,
+    currentScreen,
+    location.pathname,
+    navigate,
+  ]);
 
   if (isAuthLoading) {
     return (

@@ -235,46 +235,189 @@ export const authService = {
     });
   },
 
+  // Añadir amigo directamente (inmediato, sin esperar aceptación)
+  async addFriendDirectly(currentUser, targetUser) {
+    const myUid = currentUser.uid;
+    const targetUid = targetUser.uid;
+    const targetName = targetUser.username || targetUser.displayName || 'Amigo';
+    const myName = currentUser.username || currentUser.displayName || 'Amigo';
+
+    const myFriendEntry = {
+      uid: targetUid,
+      username: targetName,
+      photoURL: targetUser.photoURL || null
+    };
+    const theirFriendEntry = {
+      uid: myUid,
+      username: myName,
+      photoURL: currentUser.photoURL || null
+    };
+
+    // 1. Añadir a mi propia lista de amigos (siempre tiene permisos sobre su doc)
+    try {
+      const mySnap = await getDoc(doc(db, 'users', myUid));
+      if (mySnap.exists()) {
+        const d = mySnap.data();
+        const currentFriends = d.friends || [];
+        const exists = currentFriends.some(f => (typeof f === 'string' ? f : f.username) === targetName);
+        if (!exists) {
+          await updateDoc(doc(db, 'users', myUid), {
+            friends: [...currentFriends, myFriendEntry]
+          });
+        }
+      }
+    } catch (e) {
+      console.error('Error adding friend to current user doc:', e);
+      throw e;
+    }
+
+    // 2. Intentar añadir de forma recíproca al otro usuario (o enviar solicitud si las reglas no lo permiten)
+    try {
+      const targetSnap = await getDoc(doc(db, 'users', targetUid));
+      if (targetSnap.exists()) {
+        const td = targetSnap.data();
+        const tfriends = td.friends || [];
+        const texists = tfriends.some(f => (typeof f === 'string' ? f : f.username) === myName);
+        if (!texists) {
+          await updateDoc(doc(db, 'users', targetUid), {
+            friends: [...tfriends, theirFriendEntry]
+          });
+        }
+      }
+    } catch (e) {
+      // Fallback: si no se puede escribir en el doc del otro usuario, notificarle en incomingRequests
+      try {
+        await updateDoc(doc(db, 'users', targetUid), {
+          incomingRequests: arrayUnion(theirFriendEntry)
+        });
+      } catch(_) {}
+    }
+  },
+
+  // Añadir amigo por UID y datos/nombre (usado en Dashboard)
+  async addFriend(currentUid, friendData) {
+    const friendName = typeof friendData === 'string'
+      ? friendData
+      : (friendData?.username || friendData?.displayName || 'Amigo');
+    const friendObj = typeof friendData === 'string'
+      ? { uid: '', username: friendData, photoURL: null }
+      : {
+          uid: friendData?.uid || '',
+          username: friendName,
+          photoURL: friendData?.photoURL || null
+        };
+
+    const snap = await getDoc(doc(db, 'users', currentUid));
+    if (snap.exists()) {
+      const d = snap.data();
+      const currentFriends = d.friends || [];
+      const exists = currentFriends.some(f => (typeof f === 'string' ? f : f?.username) === friendName);
+      if (!exists) {
+        await updateDoc(doc(db, 'users', currentUid), {
+          friends: [...currentFriends, friendObj]
+        });
+      }
+    }
+  },
+
   // Aceptar solicitud de amistad
   async acceptFriendRequest(currentUser, requestFromUser) {
-    // 1. Añadir a lista mutua de amigos
-    await updateDoc(doc(db, 'users', currentUser.uid), {
-      friends: arrayUnion({
-        uid: requestFromUser.uid,
-        username: requestFromUser.username,
-        photoURL: requestFromUser.photoURL || null
-      }),
-      incomingRequests: arrayRemove(requestFromUser)
-    });
+    const myUid = currentUser.uid;
+    const theirUid = requestFromUser.uid;
+    const theirName = requestFromUser.username;
+    const myName = currentUser.username || currentUser.displayName || 'Amigo';
 
-    // 2. Añadir en el perfil del otro usuario y limpiar sentRequests
-    await updateDoc(doc(db, 'users', requestFromUser.uid), {
-      friends: arrayUnion({
-        uid: currentUser.uid,
-        username: currentUser.username || currentUser.displayName,
-        photoURL: currentUser.photoURL || null
-      }),
-      sentRequests: arrayRemove({
-        uid: currentUser.uid,
-        username: currentUser.username || currentUser.displayName,
-        photoURL: currentUser.photoURL || null
-      })
-    });
+    const myFriendObj = {
+      uid: theirUid,
+      username: theirName,
+      photoURL: requestFromUser.photoURL || null
+    };
+    const theirFriendObj = {
+      uid: myUid,
+      username: myName,
+      photoURL: currentUser.photoURL || null
+    };
+
+    // 1. Actualizar usuario actual: añadir a friends y quitar de incomingRequests
+    try {
+      const snap = await getDoc(doc(db, 'users', myUid));
+      if (snap.exists()) {
+        const d = snap.data();
+        const incoming = (d.incomingRequests || []).filter(
+          r => r.uid !== theirUid && r.username !== theirName
+        );
+        const friends = d.friends || [];
+        const exists = friends.some(f => (typeof f === 'string' ? f : f?.username) === theirName);
+        await updateDoc(doc(db, 'users', myUid), {
+          friends: exists ? friends : [...friends, myFriendObj],
+          incomingRequests: incoming
+        });
+      }
+    } catch (e) {
+      console.error('Error al aceptar solicitud en doc propio:', e);
+    }
+
+    // 2. Actualizar doc del emisor si es posible
+    try {
+      const targetSnap = await getDoc(doc(db, 'users', theirUid));
+      if (targetSnap.exists()) {
+        const td = targetSnap.data();
+        const sent = (td.sentRequests || []).filter(
+          r => r.uid !== myUid && r.username !== myName
+        );
+        const tfriends = td.friends || [];
+        const texists = tfriends.some(f => (typeof f === 'string' ? f : f?.username) === myName);
+        await updateDoc(doc(db, 'users', theirUid), {
+          friends: texists ? tfriends : [...tfriends, theirFriendObj],
+          sentRequests: sent
+        });
+      }
+    } catch (e) {
+      console.warn('Could not update target user doc on accept:', e);
+    }
   },
 
   // Rechazar solicitud de amistad
   async rejectFriendRequest(currentUser, requestFromUser) {
-    await updateDoc(doc(db, 'users', currentUser.uid), {
-      incomingRequests: arrayRemove(requestFromUser)
-    });
+    const myUid = currentUser.uid;
+    const theirUid = requestFromUser.uid;
+    const theirName = requestFromUser.username;
+
+    try {
+      const snap = await getDoc(doc(db, 'users', myUid));
+      if (snap.exists()) {
+        const d = snap.data();
+        const incoming = (d.incomingRequests || []).filter(
+          r => r.uid !== theirUid && r.username !== theirName
+        );
+        await updateDoc(doc(db, 'users', myUid), {
+          incomingRequests: incoming
+        });
+      }
+    } catch (e) {
+      console.error('Error al rechazar solicitud:', e);
+    }
   },
 
-    // Eliminar amigo en Firestore
-    async removeFriend(currentUid, friendObj) {
-      await updateDoc(doc(db, 'users', currentUid), {
-        friends: arrayRemove(friendObj)
-      });
-    },
+  // Eliminar amigo en Firestore
+  async removeFriend(currentUid, friendObj) {
+    const friendName = typeof friendObj === 'string' ? friendObj : friendObj?.username;
+    try {
+      const snap = await getDoc(doc(db, 'users', currentUid));
+      if (snap.exists()) {
+        const d = snap.data();
+        const filtered = (d.friends || []).filter(f => {
+          const name = typeof f === 'string' ? f : f?.username;
+          return name !== friendName;
+        });
+        await updateDoc(doc(db, 'users', currentUid), {
+          friends: filtered
+        });
+      }
+    } catch (e) {
+      console.error('Error al eliminar amigo:', e);
+    }
+  },
 
     // Generar un ID de conversación canónico único entre dos usuarios
     getConversationId(user1, user2) {

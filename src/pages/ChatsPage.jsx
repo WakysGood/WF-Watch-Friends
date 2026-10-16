@@ -150,6 +150,22 @@ export function ChatsPage({ user }) {
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => navigate('/lobby')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#e2e8f0',
+                  borderRadius: 8,
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="Volver al lobby"
+              >
+                <ArrowLeft size={16} />
+              </button>
               <MessageSquare size={18} color="#00d2ff" />
               <span style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
                 Chats Privados P2P

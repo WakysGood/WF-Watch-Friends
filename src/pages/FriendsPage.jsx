@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, UserPlus, Trash2, Check, X, Clock, UserCheck, MessageSquare } from 'lucide-react';
+import { Users, UserPlus, Trash2, Check, X, Clock, UserCheck, MessageSquare, ArrowLeft } from 'lucide-react';
 import { authService } from '../services/firebase';
 import { AddFriendModal } from '../components/AddFriendModal';
 
@@ -13,12 +13,18 @@ export function FriendsPage({ user }) {
 
   // Escuchar en tiempo real los cambios del usuario en Firestore (amigos y solicitudes aceptadas/enviadas)
   useEffect(() => {
-    if (!user.uid) return;
+    if (user) {
+      setUserData((prev) => ({ ...prev, ...user }));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
     const unsubscribe = authService.listenToUserDoc(user.uid, (data) => {
       setUserData((prev) => ({ ...prev, ...data }));
     });
     return () => unsubscribe && unsubscribe();
-  }, [user.uid]);
+  }, [user?.uid]);
 
   const friends = userData.friends || [];
   const incomingRequests = userData.incomingRequests || [];
@@ -52,11 +58,29 @@ export function FriendsPage({ user }) {
         maxHeight: '100%',
       }}
     >
-      {/* Header con botón para buscar */}
+      {/* Header con botón para volver y buscar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <span style={{ fontSize: '1rem', fontWeight: 800, color: '#fff' }}>
-          Comunidad y Amigos
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => navigate('/lobby')}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: '#e2e8f0',
+              borderRadius: 8,
+              padding: '6px 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="Volver al lobby"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#fff' }}>
+            Comunidad y Amigos
+          </span>
+        </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
@@ -133,12 +157,34 @@ export function FriendsPage({ user }) {
             <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.82rem', padding: 24 }}>
               <Users size={34} style={{ opacity: 0.35, marginBottom: 8 }} />
               <p>Aún no tienes amigos en tu lista.</p>
-              <p style={{ fontSize: '0.74rem', marginTop: 4 }}>Usa el botón "Buscar Usuario" para enviar una solicitud.</p>
+              <p style={{ fontSize: '0.74rem', marginTop: 4 }}>Usa el botón "Buscar Usuario" para agregar amigos directamente.</p>
+              {(incomingRequests.length > 0 || sentRequests.length > 0) && (
+                <button
+                  onClick={() => setActiveTab('requests')}
+                  style={{
+                    marginTop: 12,
+                    background: 'rgba(0, 210, 255, 0.12)',
+                    border: '1px solid rgba(0, 210, 255, 0.3)',
+                    color: '#00d2ff',
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Ver {incomingRequests.length + sentRequests.length} solicitud(es) pendiente(s)
+                </button>
+              )}
             </div>
           ) : (
             friends.map((friend, i) => {
-              const name = typeof friend === 'string' ? friend : friend.username;
+              if (!friend) return null;
+              const name = typeof friend === 'string'
+                ? friend
+                : (friend.username || friend.displayName || friend.name || 'Amigo');
               const photo = typeof friend === 'object' ? friend.photoURL : null;
+              const initial = (name || 'A').slice(0, 2).toUpperCase();
 
               return (
                 <div
@@ -173,7 +219,7 @@ export function FriendsPage({ user }) {
                       {photo ? (
                         <img src={photo} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
-                        name.slice(0, 2).toUpperCase()
+                        initial
                       )}
                     </div>
                     <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f1f5f9' }}>
