@@ -391,16 +391,275 @@ export function getServerNameFromUrl(url = '') {
 }
 
 /**
- * Genera el script inyectado para detectar videos y capturar clics de navegación
+ * Patrones y dominios de redes publicitarias, popunders y rastreadores
  */
-function getInjectedScript() {
+export const AD_PATTERNS = [
+  'doubleclick.net',
+  'googlesyndication.com',
+  'google-analytics.com',
+  'googleads',
+  'adservice.google.com',
+  'adnxs.com',
+  'adsterra',
+  'propellerads',
+  'popads',
+  'popcash',
+  'clickadu',
+  'exoclick',
+  'trafficjunky',
+  'juicyads',
+  'mgid.com',
+  'taboola.com',
+  'outbrain.com',
+  'revcontent.com',
+  'admaven',
+  'hilltopads',
+  'monetag',
+  'yllix',
+  'bidvertiser',
+  'notix',
+  'onclickmega',
+  'directrev',
+  'zergnet',
+  'adk2x',
+  'ad-delivery',
+  'adform',
+  'smartadserver',
+  'rubiconproject',
+  'openx.net',
+  'pubmatic',
+  'adcolony',
+  'inmobi',
+  'bet365',
+  '1xbet',
+  'melbet',
+  'linebet',
+  'coinhive',
+  'crypto-loot',
+  'aditude',
+  'teads.tv',
+  'criteo.com',
+  'adtrue',
+  'adcash',
+  'bidvol',
+  'vidoomy',
+  'showads',
+  'serving-sys',
+  'richaudience',
+  'moatads',
+  'yieldmo',
+  'gumgum.com',
+  'undertone.com',
+  'sovrn.com',
+  'infolinks.com',
+  'alwingulla.com',
+  'e-planning.net',
+  'histats.com',
+  'whos.amung.us',
+  'effectivemeasure',
+  'blockadblock',
+  'fuckadblock',
+  'adblock-detector',
+  'ad-shield',
+  'adprotect',
+];
+
+/**
+ * Filtra y elimina scripts de anuncios, iframes publicitarios y contenedores de spam del HTML
+ */
+export function filterHtmlAds(rawHtml = '') {
+  if (!rawHtml || typeof rawHtml !== 'string') return rawHtml;
+
+  let cleaned = rawHtml;
+
+  // 1. Eliminar scripts cuyo src coincide con redes publicitarias
+  cleaned = cleaned.replace(
+    /<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/script>/gi,
+    (match, src) => {
+      const lowerSrc = src.toLowerCase();
+      if (AD_PATTERNS.some((pattern) => lowerSrc.includes(pattern))) {
+        return '<!-- [WF-AdBlock] Removed ad script -->';
+      }
+      return match;
+    }
+  );
+
+  // 2. Eliminar scripts inline de anuncios, popunders y detectores de adblockers
+  cleaned = cleaned.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gi, (match, code) => {
+    const lowerCode = code.toLowerCase();
+    if (
+      lowerCode.includes('adsbygoogle') ||
+      lowerCode.includes('popunder') ||
+      lowerCode.includes('adsterra') ||
+      lowerCode.includes('propellerads') ||
+      lowerCode.includes('monetag') ||
+      lowerCode.includes('clickadu') ||
+      lowerCode.includes('blockadblock') ||
+      lowerCode.includes('fuckadblock') ||
+      lowerCode.includes('adblockdetected')
+    ) {
+      return '<!-- [WF-AdBlock] Removed inline ad script -->';
+    }
+    return match;
+  });
+
+  // 3. Eliminar iframes de anuncios
+  cleaned = cleaned.replace(
+    /<iframe\b[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/gi,
+    (match, src) => {
+      const lowerSrc = src.toLowerCase();
+      if (AD_PATTERNS.some((pattern) => lowerSrc.includes(pattern))) {
+        return '<!-- [WF-AdBlock] Removed ad iframe -->';
+      }
+      return match;
+    }
+  );
+
+  // 4. Eliminar contenedores de anuncios de AdSense (<ins class="adsbygoogle">)
+  cleaned = cleaned.replace(
+    /<ins\b[^>]*\bclass=["'][^"']*adsbygoogle[^"']*["'][^>]*>[\s\S]*?<\/ins>/gi,
+    ''
+  );
+
+  // 5. Inyectar estilos CSS cosméticos y shim anti-detección en el <head>
+  const adBlockHeadInject = `
+<style id="wf-adblock-shield">
+  .adsbygoogle, .ad-container, .ads-container, .ad-banner, .banner-ad,
+  .ad-box, .ad-wrapper, .ad_wrapper, .ad-slot, .ad_slot,
+  .ad-placement, .ad_placement, .ad-header, .ad-footer,
+  .ad-sidebar, .publi, .publicidad, .anuncio, .anuncios,
+  .ad_banner, .ad_box, .banner_ad, .adbox, .adbanner,
+  [id^="ad-"], [id^="ad_"], [id*="google_ads"],
+  [class*="ad-banner"], [class*="banner-ads"], [class*="adsbygoogle"],
+  [class*="ad_container"], [id*="ad_container"],
+  iframe[src*="doubleclick"], iframe[src*="adsterra"],
+  iframe[src*="propeller"], iframe[src*="popads"], iframe[src*="monetag"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+</style>
+<script id="wf-adblock-stealth">
+  try {
+    window.adsbygoogle = window.adsbygoogle || [];
+    window.adsbygoogle.push = function() {};
+    window.canRunAds = true;
+    window.isAdBlockActive = false;
+    window.hasAdBlocker = false;
+    window.adblock = false;
+    window._isAdBlockDisabled = true;
+  } catch(_) {}
+</script>
+`;
+
+  if (cleaned.includes('<head>')) {
+    cleaned = cleaned.replace('<head>', `<head>${adBlockHeadInject}`);
+  } else if (/<head[^>]*>/i.test(cleaned)) {
+    cleaned = cleaned.replace(/<head[^>]*>/i, `$&${adBlockHeadInject}`);
+  } else {
+    cleaned = adBlockHeadInject + cleaned;
+  }
+
+  return cleaned;
+}
+
+/**
+ * Genera el script inyectado para detectar videos, capturar clics y bloquear anuncios/popups
+ */
+function getInjectedScript(enableAdBlock = true) {
+  const adBlockScriptPart = enableAdBlock ? `
+  // ── AdBlocker & Anti-Popups Shield ──
+  var adDomains = [
+    'doubleclick', 'googlesyndication', 'google-analytics', 'googleads',
+    'adservice', 'adnxs', 'adsterra', 'propellerads', 'popads',
+    'popcash', 'clickadu', 'exoclick', 'trafficjunky', 'juicyads', 'mgid',
+    'taboola', 'outbrain', 'revcontent', 'admaven', 'hilltopads',
+    'monetag', 'yllix', 'bidvertiser', 'notix', 'onclickmega', 'directrev',
+    'zergnet', 'adk2x', 'ad-delivery', 'adform', 'smartadserver', 'rubiconproject',
+    'openx', 'pubmatic', 'adcolony', 'inmobi', 'bet365', '1xbet', 'melbet',
+    'alwingulla'
+  ];
+
+  function isAdDomain(str) {
+    if (!str || typeof str !== 'string') return false;
+    var s = str.toLowerCase();
+    for (var a = 0; a < adDomains.length; a++) {
+      if (s.indexOf(adDomains[a]) !== -1) return true;
+    }
+    return false;
+  }
+
+  // Anular window.open para prevenir popups y ventanas emergentes publicitarias
+  try {
+    window.open = function(u) {
+      if (u && isVideoUrl(u)) {
+        notify('SERVER_SELECTED', { url: u, server: getServerName(u), title: document.title });
+      }
+      return null;
+    };
+  } catch(_) {}
+
+  // Suprimir spam de alertas
+  try {
+    window.alert = function() {};
+    window.confirm = function() { return false; };
+  } catch(_) {}
+
+  // Eliminar capas invisibles de clickjacking / overlays que activan anuncios al tocar
+  function removeAdOverlays() {
+    try {
+      var all = document.querySelectorAll('div, a, span');
+      for (var o = 0; o < all.length; o++) {
+        var elOverlay = all[o];
+        var s = window.getComputedStyle(elOverlay);
+        if ((s.position === 'fixed' || s.position === 'absolute') && parseInt(s.zIndex, 10) >= 999) {
+          var r = elOverlay.getBoundingClientRect();
+          if (r.width >= window.innerWidth * 0.75 && r.height >= window.innerHeight * 0.75) {
+            if (!elOverlay.querySelector('video, iframe, object, embed')) {
+              elOverlay.style.display = 'none';
+              elOverlay.style.pointerEvents = 'none';
+              if (elOverlay.parentNode) elOverlay.parentNode.removeChild(elOverlay);
+            }
+          }
+        }
+      }
+    } catch(_) {}
+  }
+  setInterval(removeAdOverlays, 1000);
+
+  // Interceptar fetch y XHR para bloquear conexiones a redes de anuncios
+  try {
+    var origFetch = window.fetch;
+    if (origFetch) {
+      window.fetch = function(input, init) {
+        var u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+        if (isAdDomain(u)) {
+          return Promise.reject(new Error('Blocked by AdBlock'));
+        }
+        return origFetch.apply(this, arguments);
+      };
+    }
+    var origXhr = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      if (isAdDomain(url)) {
+        this.abort();
+        return;
+      }
+      return origXhr.apply(this, arguments);
+    };
+  } catch(_) {}
+` : '';
+
   return `
 <script>
 (function(){
   function notify(type, data) {
     try { window.parent.postMessage(Object.assign({ type: type }, data), '*'); } catch(e) {}
   }
-
+` + adBlockScriptPart + `
   var videoDomains = [
     'streamwish', 'sfastwish', 'awish', 'wishembed', 'dwish',
     'mega.nz', 'mega.co.nz',
@@ -625,7 +884,7 @@ function getInjectedScript() {
 /**
  * Carga y prepara el HTML de una página para mostrar en iframe con srcDoc
  */
-export async function fetchWebPageHtml(targetUrl) {
+export async function fetchWebPageHtml(targetUrl, enableAdBlock = true) {
   let url = targetUrl.trim();
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = `https://${url}`;
@@ -680,6 +939,11 @@ export async function fetchWebPageHtml(targetUrl) {
     )
     .replace(/<meta[^>]+http-equiv=["']?X-Frame-Options["']?[^>]*>/gi, '');
 
+  // Si AdBlock está habilitado, filtrar scripts de anuncios, popunders y banners
+  if (enableAdBlock) {
+    html = filterHtmlAds(html);
+  }
+
   // Insertar <base href> para resolver rutas relativas
   if (origin) {
     if (html.includes('<head>')) {
@@ -692,7 +956,7 @@ export async function fetchWebPageHtml(targetUrl) {
   }
 
   // Inyectar el script interceptor
-  const script = getInjectedScript();
+  const script = getInjectedScript(enableAdBlock);
   if (html.includes('</body>')) {
     html = html.replace('</body>', script + '</body>');
   } else {

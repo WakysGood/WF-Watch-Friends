@@ -18,6 +18,8 @@ import {
   Radio,
   ExternalLink,
   Film,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import {
   searchYouTubeVideos,
@@ -64,6 +66,7 @@ export function MediaSelectorModal({
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [detectedVideo, setDetectedVideo] = useState(null);
   const [animeServers, setAnimeServers] = useState([]);
+  const [adBlockEnabled, setAdBlockEnabled] = useState(true);
 
   // Guard para evitar doble-ejecución si llegan mensajes duplicados del iframe
   const isResolvingRef = React.useRef(false);
@@ -161,7 +164,7 @@ export function MediaSelectorModal({
   // ── Navegación Web ───────────────────────────────────────────────
 
   // Navegar a una página web real (dentro del iframe)
-  const navigateToUrl = async (targetUrl, pushHistory = true) => {
+  const navigateToUrl = async (targetUrl, pushHistory = true, useAdBlock = adBlockEnabled) => {
     if (!targetUrl) return;
     let url = targetUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -222,7 +225,7 @@ export function MediaSelectorModal({
     setBrowserLoading(true);
 
     try {
-      const { html } = await fetchWebPageHtml(url);
+      const { html } = await fetchWebPageHtml(url, useAdBlock);
       setIframeDoc(html);
       setIframeSrc('');
     } catch (err) {
@@ -298,7 +301,7 @@ export function MediaSelectorModal({
   };
 
   const handleRefresh = () => {
-    if (currentUrl) navigateToUrl(currentUrl, false);
+    if (currentUrl) navigateToUrl(currentUrl, false, adBlockEnabled);
   };
 
   const handleHomeClick = () => {
@@ -632,6 +635,34 @@ export function MediaSelectorModal({
                 style={{ ...navBtnBase, color: '#00d2ff' }}
               >
                 <ExternalLink size={16} />
+              </button>
+
+              {/* Botón Escudo AdBlock */}
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !adBlockEnabled;
+                  setAdBlockEnabled(next);
+                  if (currentUrl) navigateToUrl(currentUrl, false, next);
+                }}
+                title={adBlockEnabled ? 'Bloqueador de anuncios y popups: ACTIVO (clic para pausar)' : 'Bloqueador de anuncios: PAUSADO (clic para activar)'}
+                style={{
+                  ...navBtnBase,
+                  background: adBlockEnabled ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  border: adBlockEnabled ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)',
+                  color: adBlockEnabled ? '#10b981' : '#ef4444',
+                  padding: '4px 8px',
+                  borderRadius: 14,
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                {adBlockEnabled ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
+                <span style={{ fontSize: '0.68rem', letterSpacing: '0.02em', display: 'inline' }}>
+                  {adBlockEnabled ? 'AdBlock' : 'Off'}
+                </span>
               </button>
 
               {/* Barra de Direcciones / Búsqueda */}

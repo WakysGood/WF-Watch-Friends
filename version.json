@@ -1,10 +1,10 @@
 {
-  "version": "1.0.2",
-  "buildNumber": 3,
+  "version": "1.0.3",
+  "buildNumber": 4,
   "type": "ota",
-  "checksum": "333d535223ea3e6abe64012a17d045a48ecf771e0667cf2b912603c0700f0222",
-  "title": "Parche v1.0.2 disponible",
-  "changelog": "Corrección pantalla negra al reproducir desde el navegador y fix en página de Amigos",
+  "checksum": "c721715da41a8a36a1e5d110e46b4bbe266ea4b2d5cf5d5d072d706cb06af961",
+  "title": "Parche v1.0.3 disponible",
+  "changelog": "Bloqueador de anuncios integrado y protección anti-popups en el navegador web",
   "bundleUrl": "https://raw.githubusercontent.com/WakysGood/WF-Watch-Friends/main/updates/dist.zip",
   "apkUrl": "https://github.com/WakysGood/WF-Watch-Friends/releases/latest/download/WF-Watch-Friends.apk"
 }
