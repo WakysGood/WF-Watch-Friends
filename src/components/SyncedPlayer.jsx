@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, RefreshCw, Volume2, VolumeX, Maximize2, ShieldCheck, Film } from 'lucide-react';
+import { Play, Pause, RefreshCw, Volume2, VolumeX, Maximize2, ShieldCheck, Film, ExternalLink } from 'lucide-react';
+import {
+  isVideoServerUrl,
+  isDirectVideoUrl,
+  getServerNameFromUrl,
+} from '../services/mediaSearchService';
 
 // Helper to extract YouTube video ID
 export function getYouTubeId(url) {
@@ -10,7 +15,7 @@ export function getYouTubeId(url) {
 }
 
 export function SyncedPlayer({
-  media,           // { url, type: 'youtube' | 'direct' | 'stream', title }
+  media,           // { url, type: 'youtube' | 'direct' | 'stream' | 'embed', title }
   isHost,          // boolean
   canControl,      // boolean (host or permissions)
   onBroadcastSync, // (action: { type: 'PLAY' | 'PAUSE' | 'SEEK', currentTime: number }) => void
@@ -29,6 +34,7 @@ export function SyncedPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [isSynced, setIsSynced] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [embedKey, setEmbedKey] = useState(0);
 
   // Prevent local triggers when applying a remote sync command
   const isApplyingRemoteSync = useRef(false);
@@ -36,6 +42,8 @@ export function SyncedPlayer({
 
   const youtubeId = getYouTubeId(media?.url);
   const isYouTube = Boolean(youtubeId);
+  const isDirect = !isYouTube && (media?.type === 'direct' || isDirectVideoUrl(media?.url));
+  const isEmbed = !isYouTube && (media?.type === 'embed' || (!isDirect && isVideoServerUrl(media?.url)) || (Boolean(media?.url) && !isDirect));
 
   // Initialize YouTube Player
   useEffect(() => {
@@ -277,9 +285,34 @@ export function SyncedPlayer({
             boxShadow: isSynced ? '0 0 8px var(--accent-green)' : 'none',
           }}
         />
-        <span>{isHost ? 'Eres el Host (Emisor)' : isSynced ? 'Sincronizado' : 'Alineando...'}</span>
+        <span>
+          {isHost
+            ? isEmbed ? `Host (Servidor: ${getServerNameFromUrl(media?.url)})` : 'Eres el Host (Emisor)'
+            : isSynced
+            ? isEmbed ? `Sincronizado (${getServerNameFromUrl(media?.url)})` : 'Sincronizado'
+            : 'Alineando...'}
+        </span>
 
-        {!isHost && (
+        {isEmbed && (
+          <button
+            onClick={() => setEmbedKey(k => k + 1)}
+            title="Recargar reproductor del servidor"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              color: 'var(--text-muted)',
+              padding: '2px 4px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              background: 'none',
+              border: 'none',
+            }}
+          >
+            <RefreshCw size={13} />
+          </button>
+        )}
+
+        {!isHost && !isEmbed && (
           <button
             onClick={onRequestSync}
             title="Forzar resincronización con el Host"
@@ -300,6 +333,24 @@ export function SyncedPlayer({
       {isYouTube ? (
         <div style={{ width: '100%', height: '100%', pointerEvents: 'auto' }}>
           <div id={ytContainerId.current} style={{ width: '100%', height: '100%' }} />
+        </div>
+      ) : isEmbed && media?.url ? (
+        <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+          <iframe
+            key={`${media.url}_${embedKey}`}
+            src={media.url}
+            title={media.title || 'Reproductor de Servidor'}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              background: '#000',
+              display: 'block',
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+          />
         </div>
       ) : media?.url ? (
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>

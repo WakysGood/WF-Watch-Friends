@@ -24,6 +24,9 @@ import {
   searchWeb,
   fetchWebPageHtml,
   openInSystemBrowser,
+  isVideoServerUrl,
+  isDirectVideoUrl,
+  getServerNameFromUrl,
 } from '../services/mediaSearchService';
 
 const YT_CATEGORIES = [
@@ -90,21 +93,38 @@ export function MediaSelectorModal({
   useEffect(() => {
     const handler = (e) => {
       if (!e.data) return;
+
+      // Servidor de video seleccionado directamente por clic en la página web
+      if (e.data.type === 'SERVER_SELECTED' && e.data.url) {
+        const isYT = isYouTubeUrl(e.data.url);
+        const isDirect = isDirectVideoUrl(e.data.url);
+        const serverName = e.data.server || getServerNameFromUrl(e.data.url);
+        handleSelectAndPlay({
+          url: e.data.url,
+          title: e.data.title ? `${e.data.title} (${serverName})` : `Episodio (${serverName})`,
+          type: isYT ? 'youtube' : isDirect ? 'direct' : 'embed',
+        });
+        return;
+      }
+
       if (e.data.type === 'BROWSE_NAVIGATE' && e.data.url) {
         navigateToUrl(e.data.url, true);
       }
+
       if (e.data.type === 'VIDEO_DETECTED' && e.data.url) {
         const isYT = isYouTubeUrl(e.data.url);
+        const isDirect = isDirectVideoUrl(e.data.url);
         setDetectedVideo({
           url: e.data.url,
           title: e.data.title || 'Video detectado',
-          type: isYT ? 'youtube' : 'direct',
+          type: isYT ? 'youtube' : isDirect ? 'direct' : 'embed',
         });
       }
+
       if (e.data.type === 'ANIME_SERVER_FOUND' && e.data.url) {
         setAnimeServers((prev) => {
           if (prev.some((s) => s.url === e.data.url)) return prev;
-          return [...prev, { server: e.data.server, url: e.data.url }];
+          return [...prev, { server: e.data.server || getServerNameFromUrl(e.data.url), url: e.data.url }];
         });
       }
     };
@@ -168,15 +188,23 @@ export function MediaSelectorModal({
     }
 
     // Si es un archivo de video directo (.mp4, .webm, .m3u8)
-    if (url.endsWith('.mp4') || url.endsWith('.webm') || url.includes('.m3u8')) {
-      setDetectedVideo({
+    if (isDirectVideoUrl(url)) {
+      handleSelectAndPlay({
         url,
         title: url.split('/').pop().split('?')[0] || 'Video Directo',
         type: 'direct',
       });
-      setIframeSrc('');
-      setIframeDoc('');
-      setBrowserLoading(false);
+      return;
+    }
+
+    // Si es un servidor de video o embed conocido (evitar pantalla negra en iframe de navegación)
+    if (isVideoServerUrl(url)) {
+      const sName = getServerNameFromUrl(url);
+      handleSelectAndPlay({
+        url,
+        title: `Episodio (${sName})`,
+        type: 'embed',
+      });
       return;
     }
 
@@ -289,21 +317,29 @@ export function MediaSelectorModal({
   };
 
   const handleSelectAndPlay = (video) => {
+    const isYT = isYouTubeUrl(video.url);
+    const isDirect = isDirectVideoUrl(video.url);
+    const resolvedType = video.type || (isYT ? 'youtube' : isDirect ? 'direct' : 'embed');
+
     onSelectMedia({
       url: video.url,
-      type: video.type || (isYouTubeUrl(video.url) ? 'youtube' : 'direct'),
-      title: video.title,
+      type: resolvedType,
+      title: video.title || 'Video Seleccionado',
     });
     onClose();
   };
 
   const handleAddQueue = (video, e) => {
     e && e.stopPropagation();
+    const isYT = isYouTubeUrl(video.url);
+    const isDirect = isDirectVideoUrl(video.url);
+    const resolvedType = video.type || (isYT ? 'youtube' : isDirect ? 'direct' : 'embed');
+
     onAddToPlaylist && onAddToPlaylist({
       id: `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       url: video.url,
-      type: video.type || (isYouTubeUrl(video.url) ? 'youtube' : 'direct'),
-      title: video.title,
+      type: resolvedType,
+      title: video.title || 'Video en cola',
       addedBy: 'Tú',
       addedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     });
@@ -666,15 +702,47 @@ export function MediaSelectorModal({
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {animeServers.map((s, i) => (
-                    <button
-                      key={s.url + i}
-                      onClick={() => handleSelectAndPlay({ url: s.url, title: `Episodio (${s.server})`, type: 'direct' })}
-                      className="glow-btn"
-                      style={{ padding: '5px 11px', fontSize: '0.74rem', borderRadius: 8 }}
-                    >
-                      <Play size={10} fill="white" style={{ marginRight: 4 }} />
-                      {s.server}
-                    </button>
+                    <div key={s.url + i} style={{ display: 'inline-flex', gap: 3 }}>
+                      <button
+                        onClick={() =>
+                          handleSelectAndPlay({
+                            url: s.url,
+                            title: `Episodio (${s.server})`,
+                            type: isDirectVideoUrl(s.url) ? 'direct' : 'embed',
+                          })
+                        }
+                        className="glow-btn"
+                        style={{ padding: '5px 11px', fontSize: '0.74rem', borderRadius: 8 }}
+                        title={`Reproducir en Room con ${s.server}`}
+                      >
+                        <Play size={10} fill="white" style={{ marginRight: 4 }} />
+                        {s.server}
+                      </button>
+                      <button
+                        onClick={(e) =>
+                          handleAddQueue(
+                            {
+                              url: s.url,
+                              title: `Episodio (${s.server})`,
+                              type: isDirectVideoUrl(s.url) ? 'direct' : 'embed',
+                            },
+                            e
+                          )
+                        }
+                        style={{
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: '#cbd5e1',
+                          padding: '5px 8px',
+                          borderRadius: 8,
+                          fontSize: '0.72rem',
+                          cursor: 'pointer',
+                        }}
+                        title="Agregar servidor a la cola"
+                      >
+                        +
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>

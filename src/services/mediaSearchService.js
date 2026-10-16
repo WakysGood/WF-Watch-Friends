@@ -265,6 +265,88 @@ export async function searchWeb(query) {
   return [];
 }
 
+const VIDEO_DOMAINS = [
+  'streamwish', 'sfastwish', 'awish', 'wishembed', 'dwish',
+  'mega.nz', 'mega.co.nz',
+  'vidhide', 'vidhidevip', 'vidhidepro',
+  'voe.sx', 'voe-unblock',
+  'bysekoze.com', 'filemoon',
+  'mixdrop', 'mixdrop.top', 'mixdrop.co',
+  'mp4upload.com',
+  'streamtape.com', 'streamtape.to',
+  'doodstream', 'dood.', 'dsvplay', 'ds2play',
+  'ok.ru', 'odnoklassniki',
+  'yourupload.com',
+  'fembed', 'feurl',
+  '1fichier.com',
+  'jkplayer', 'jkanime.net/jk.php', 'jkanime.net/jkplayer',
+  'desu-stream', 'desu.', 'solidfiles',
+  'sendvid', 'vidguard', 'vgfplay',
+  'uqload', 'upstream', 'streamlare', 'netu'
+];
+
+/**
+ * Determina si una URL pertenece a un servidor de video / embed conocido
+ */
+export function isVideoServerUrl(url = '') {
+  if (!url || typeof url !== 'string') return false;
+  const lower = url.toLowerCase();
+  if (VIDEO_DOMAINS.some(d => lower.includes(d))) return true;
+  if (
+    lower.includes('/embed/') ||
+    lower.includes('/e/') ||
+    lower.includes('embed.html') ||
+    lower.includes('embed-') ||
+    lower.includes('videoembed')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Determina si una URL apunta directamente a un archivo de video multimedia
+ */
+export function isDirectVideoUrl(url = '') {
+  if (!url || typeof url !== 'string') return false;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return (
+    clean.endsWith('.mp4') ||
+    clean.endsWith('.webm') ||
+    clean.endsWith('.ogg') ||
+    clean.endsWith('.mov') ||
+    clean.includes('.m3u8')
+  );
+}
+
+/**
+ * Obtiene el nombre legible de un servidor de video a partir de su URL
+ */
+export function getServerNameFromUrl(url = '') {
+  if (!url || typeof url !== 'string') return 'Servidor';
+  const lower = url.toLowerCase();
+  if (lower.includes('streamwish') || lower.includes('sfastwish') || lower.includes('awish') || lower.includes('dwish')) return 'Streamwish';
+  if (lower.includes('mega.nz') || lower.includes('mega.co')) return 'Mega';
+  if (lower.includes('vidhide')) return 'Vidhide';
+  if (lower.includes('voe.sx')) return 'VOE';
+  if (lower.includes('filemoon') || lower.includes('bysekoze')) return 'Filemoon';
+  if (lower.includes('mixdrop')) return 'Mixdrop';
+  if (lower.includes('mp4upload')) return 'Mp4upload';
+  if (lower.includes('streamtape')) return 'Streamtape';
+  if (lower.includes('dood') || lower.includes('dsvplay')) return 'Doodstream';
+  if (lower.includes('ok.ru')) return 'Okru';
+  if (lower.includes('yourupload')) return 'YourUpload';
+  if (lower.includes('1fichier')) return '1Fichier';
+  if (lower.includes('fembed') || lower.includes('feurl')) return 'Fembed';
+  if (lower.includes('jkplayer')) return 'JKPlayer';
+  try {
+    const host = new URL(url).hostname.replace('www.', '').split('.')[0];
+    return host ? host.charAt(0).toUpperCase() + host.slice(1) : 'Servidor';
+  } catch (_) {
+    return 'Servidor';
+  }
+}
+
 /**
  * Genera el script inyectado para detectar videos y capturar clics de navegación
  */
@@ -276,26 +358,124 @@ function getInjectedScript() {
     try { window.parent.postMessage(Object.assign({ type: type }, data), '*'); } catch(e) {}
   }
 
+  var videoDomains = [
+    'streamwish', 'sfastwish', 'awish', 'wishembed', 'dwish',
+    'mega.nz', 'mega.co.nz',
+    'vidhide', 'vidhidevip', 'vidhidepro',
+    'voe.sx', 'voe-unblock',
+    'bysekoze.com', 'filemoon',
+    'mixdrop', 'mixdrop.top', 'mixdrop.co',
+    'mp4upload.com',
+    'streamtape.com', 'streamtape.to',
+    'doodstream', 'dood.', 'dsvplay', 'ds2play',
+    'ok.ru', 'odnoklassniki',
+    'yourupload.com',
+    'fembed', 'feurl',
+    '1fichier.com',
+    'jkplayer', 'jkanime.net/jk.php', 'jkanime.net/jkplayer',
+    'desu-stream', 'desu.', 'solidfiles',
+    'sendvid', 'vidguard', 'vgfplay',
+    'uqload', 'upstream', 'streamlare', 'netu'
+  ];
+
+  function isVideoUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    var lower = url.toLowerCase();
+    for (var i = 0; i < videoDomains.length; i++) {
+      if (lower.indexOf(videoDomains[i]) !== -1) return true;
+    }
+    if (lower.indexOf('/embed/') !== -1 || lower.indexOf('/e/') !== -1 || lower.indexOf('embed.html') !== -1 || lower.indexOf('embed-') !== -1 || lower.indexOf('.m3u8') !== -1) {
+      return true;
+    }
+    var clean = lower.split('?')[0].split('#')[0];
+    if (clean.endsWith('.mp4') || clean.endsWith('.webm') || clean.endsWith('.ogg')) return true;
+    return false;
+  }
+
+  function getServerName(url, def) {
+    if (!url) return def || 'Servidor';
+    var lower = url.toLowerCase();
+    for (var i = 0; i < videoDomains.length; i++) {
+      if (lower.indexOf(videoDomains[i]) !== -1) {
+        var d = videoDomains[i].split('.')[0];
+        return d.charAt(0).toUpperCase() + d.slice(1);
+      }
+    }
+    return def || 'Servidor';
+  }
+
   function intercept(url) {
     if (!url) return;
     try {
       var abs = new URL(url, document.baseURI).href;
+      if (isVideoUrl(abs)) {
+        notify('SERVER_SELECTED', { url: abs, server: getServerName(abs), title: document.title });
+        return false;
+      }
       notify('BROWSE_NAVIGATE', { url: abs });
     } catch(e) {}
     return false;
   }
 
-  // Intercept link clicks
+  // Interceptar clics en enlaces y en botones/pestañas de servidores
   document.addEventListener('click', function(e) {
-    var el = e.target.closest('a');
+    var el = e.target.closest('a, button, [data-server], [data-video], [data-src], .servers, .server-item, .CapiTnv li, [onclick*="server"]');
     if (!el) return;
-    var href = el.getAttribute('href') || '';
-    if (href.startsWith('javascript:') || href.startsWith('#')) return;
-    e.preventDefault();
-    intercept(el.href || href);
+
+    var rawHref = el.getAttribute('href') || '';
+    var dataSrc = el.getAttribute('data-src') || el.getAttribute('data-video') || el.getAttribute('data-url') || '';
+    var testUrl = dataSrc || el.href || rawHref;
+
+    // Verificar si es un botón de servidor conocido en jkanime, animeflv, etc.
+    if (el.classList && (el.classList.contains('servers') || el.classList.contains('btn-show') || el.classList.contains('server-item') || el.closest('.bg-servers, #collapseServers, .CapiTnv'))) {
+      var sName = el.textContent.trim() || 'Servidor';
+      var dataId = el.getAttribute('data-id');
+
+      // JKAnime window.servers
+      if (dataId !== null && window.servers && window.servers[dataId] && window.servers[dataId].remote) {
+        try {
+          var dec = atob(window.servers[dataId].remote.trim());
+          if (dec && dec.indexOf('http') === 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            notify('SERVER_SELECTED', { url: dec, server: window.servers[dataId].server || sName, title: document.title });
+            return false;
+          }
+        } catch(_) {}
+      }
+
+      // JKAnime window.video
+      if (dataId !== null && window.video && window.video[dataId]) {
+        var vHtml = window.video[dataId];
+        var matchSrc = vHtml.match(/src=["']([^"']+)["']/);
+        if (matchSrc && matchSrc[1]) {
+          var srcUrl = matchSrc[1];
+          if (srcUrl.indexOf('/') === 0) srcUrl = location.origin + srcUrl;
+          e.preventDefault();
+          e.stopPropagation();
+          notify('SERVER_SELECTED', { url: srcUrl, server: sName, title: document.title });
+          return false;
+        }
+      }
+    }
+
+    if (testUrl && isVideoUrl(testUrl)) {
+      e.preventDefault();
+      e.stopPropagation();
+      var absUrl = testUrl;
+      try { absUrl = new URL(testUrl, document.baseURI).href; } catch(_) {}
+      notify('SERVER_SELECTED', { url: absUrl, server: getServerName(absUrl, el.textContent.trim()), title: document.title });
+      return false;
+    }
+
+    if (rawHref.startsWith('javascript:') || rawHref.startsWith('#')) return;
+    if (el.tagName === 'A' && el.href) {
+      e.preventDefault();
+      intercept(el.href);
+    }
   }, true);
 
-  // Intercept form submits (e.g. search boxes)
+  // Interceptar envío de formularios
   document.addEventListener('submit', function(e) {
     e.preventDefault();
     var form = e.target;
@@ -305,9 +485,10 @@ function getInjectedScript() {
     intercept(url);
   }, true);
 
-  // Detect videos on page (HTML5 <video>, <source>, m3u8 streams, iframes)
+  // Escanear medios, servidores de anime y iframes con reproductores
   function scanMedia() {
-    var vids = document.querySelectorAll('video, iframe[src*="youtube.com"], iframe[src*="youtu.be"]');
+    // 1. Tags <video> directos
+    var vids = document.querySelectorAll('video');
     vids.forEach(function(v) {
       var src = v.currentSrc || v.src || (v.querySelector('source') ? v.querySelector('source').src : '');
       if (src && !src.startsWith('blob:') && !src.startsWith('data:')) {
@@ -315,6 +496,7 @@ function getInjectedScript() {
       }
     });
 
+    // 2. Tags <source>
     var sources = document.querySelectorAll('source[src]');
     sources.forEach(function(s) {
       if (s.src) {
@@ -322,6 +504,16 @@ function getInjectedScript() {
       }
     });
 
+    // 3. Tags <iframe> que contienen reproductores o servidores
+    var iframes = document.querySelectorAll('iframe[src]');
+    iframes.forEach(function(f) {
+      var fSrc = f.src || '';
+      if (fSrc && isVideoUrl(fSrc)) {
+        notify('ANIME_SERVER_FOUND', { server: getServerName(fSrc), url: fSrc });
+      }
+    });
+
+    // 4. window.servers (JKAnime)
     try {
       if (window.servers && Array.isArray(window.servers)) {
         for (var i = 0; i < window.servers.length; i++) {
@@ -329,10 +521,50 @@ function getInjectedScript() {
           if (s && s.remote) {
             try {
               var dec = atob(s.remote.trim());
-              if (dec && dec.startsWith('http')) {
+              if (dec && dec.indexOf('http') === 0) {
                 notify('ANIME_SERVER_FOUND', { server: s.server, url: dec });
               }
             } catch(_) {}
+          }
+        }
+      }
+    } catch(_) {}
+
+    // 5. window.video (JKAnime con iframes)
+    try {
+      if (window.video && Array.isArray(window.video)) {
+        for (var k = 0; k < window.video.length; k++) {
+          var item = window.video[k];
+          if (typeof item === 'string') {
+            var m = item.match(/src=["']([^"']+)["']/);
+            if (m && m[1]) {
+              var full = m[1];
+              if (full.indexOf('/') === 0) full = location.origin + full;
+              var btnEl = document.querySelector('.bg-servers a[data-id="' + k + '"]');
+              var sLabel = btnEl ? btnEl.textContent.trim() : ('Opción ' + (k + 1));
+              notify('ANIME_SERVER_FOUND', { server: sLabel, url: full });
+            }
+          }
+        }
+      }
+    } catch(_) {}
+
+    // 6. window.videos (AnimeFLV)
+    try {
+      if (window.videos && typeof window.videos === 'object') {
+        for (var lang in window.videos) {
+          var list = window.videos[lang];
+          if (Array.isArray(list)) {
+            for (var mIdx = 0; mIdx < list.length; mIdx++) {
+              var vObj = list[mIdx];
+              var c = vObj.code || vObj.url;
+              if (c) {
+                var mSrc = c.match(/src=["']([^"']+)["']/);
+                var resolved = mSrc ? mSrc[1] : c;
+                if (resolved.indexOf('//') === 0) resolved = 'https:' + resolved;
+                notify('ANIME_SERVER_FOUND', { server: vObj.title || vObj.server || 'Servidor', url: resolved });
+              }
+            }
           }
         }
       }
