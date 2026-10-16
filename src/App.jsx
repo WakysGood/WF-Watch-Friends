@@ -16,6 +16,8 @@ import { ChatPanel } from './components/ChatPanel';
 import { MediaSelectorModal } from './components/MediaSelectorModal';
 import { RoomSettingsModal } from './components/RoomSettingsModal';
 import { NetworkBanner } from './components/NetworkBanner';
+import { UpdateModal } from './components/UpdateModal';
+import { checkForUpdate, notifyAppReady } from './services/updateService';
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
@@ -24,6 +26,29 @@ export default function App() {
   const [isHost, setIsHost] = useState(false);
   const [roomId, setRoomId] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [pendingUpdate, setPendingUpdate] = useState(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // Verificar actualizaciones de la app al iniciar
+  useEffect(() => {
+    notifyAppReady();
+    checkForUpdate().then((res) => {
+      if (res && res.hasUpdate && res.updateInfo) {
+        setPendingUpdate(res.updateInfo);
+        setIsUpdateModalOpen(true);
+      }
+    });
+  }, []);
+
+  const handleManualCheckUpdate = async () => {
+    const res = await checkForUpdate();
+    if (res && res.hasUpdate && res.updateInfo) {
+      setPendingUpdate(res.updateInfo);
+      setIsUpdateModalOpen(true);
+      return { hasUpdate: true, version: res.updateInfo.version };
+    }
+    return { hasUpdate: false, currentVersion: res?.currentVersion || '1.0.0' };
+  };
 
   // Escuchar estado de Firebase Auth o LocalStorage fallback
   useEffect(() => {
@@ -748,49 +773,66 @@ export default function App() {
 
   if (currentScreen === 'auth' || !authUser) {
     return (
-      <AuthView
-        onAuthSuccess={(user) => {
-          setAuthUser(user);
-          setCurrentScreen('lobby');
-        }}
-      />
+      <>
+        <AuthView
+          onAuthSuccess={(user) => {
+            setAuthUser(user);
+            setCurrentScreen('lobby');
+          }}
+        />
+        <UpdateModal
+          isOpen={isUpdateModalOpen}
+          updateInfo={pendingUpdate}
+          onClose={() => setIsUpdateModalOpen(false)}
+        />
+      </>
     );
   }
 
   if (currentScreen === 'lobby') {
     return (
-      <Routes>
-        <Route element={<DashboardLayout />}>
-          <Route
-            path="/lobby"
-            element={
-              <LobbyPage
-                onCreateRoom={() =>
-                  handleCreateRoom({
-                    name: authUser.displayName,
-                    avatar: authUser.photoURL || authUser.displayName.slice(0, 2).toUpperCase(),
-                    color: '#00d2ff',
-                  })
-                }
-                onJoinRoom={(code) =>
-                  handleJoinRoom(code, {
-                    name: authUser.displayName,
-                    avatar: authUser.photoURL || authUser.displayName.slice(0, 2).toUpperCase(),
-                    color: '#00d2ff',
-                  })
-                }
-                defaultRoomId={roomId}
-              />
-            }
-          />
-          <Route path="/friends" element={<FriendsPage user={authUser} />} />
-          <Route path="/chats" element={<ChatsPage user={authUser} />} />
-          <Route path="/chats/:friendUsername" element={<ChatsPage user={authUser} />} />
-          <Route path="/profile" element={<ProfilePage user={authUser} onLogout={handleLogout} />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/lobby" replace />} />
-        </Route>
-      </Routes>
+      <>
+        <Routes>
+          <Route element={<DashboardLayout />}>
+            <Route
+              path="/lobby"
+              element={
+                <LobbyPage
+                  onCreateRoom={() =>
+                    handleCreateRoom({
+                      name: authUser.displayName,
+                      avatar: authUser.photoURL || authUser.displayName.slice(0, 2).toUpperCase(),
+                      color: '#00d2ff',
+                    })
+                  }
+                  onJoinRoom={(code) =>
+                    handleJoinRoom(code, {
+                      name: authUser.displayName,
+                      avatar: authUser.photoURL || authUser.displayName.slice(0, 2).toUpperCase(),
+                      color: '#00d2ff',
+                    })
+                  }
+                  defaultRoomId={roomId}
+                />
+              }
+            />
+            <Route path="/friends" element={<FriendsPage user={authUser} />} />
+            <Route path="/chats" element={<ChatsPage user={authUser} />} />
+            <Route path="/chats/:friendUsername" element={<ChatsPage user={authUser} />} />
+            <Route path="/profile" element={<ProfilePage user={authUser} onLogout={handleLogout} />} />
+            <Route
+              path="/settings"
+              element={<SettingsPage onCheckUpdate={handleManualCheckUpdate} />}
+            />
+            <Route path="*" element={<Navigate to="/lobby" replace />} />
+          </Route>
+        </Routes>
+        <UpdateModal
+          isOpen={isUpdateModalOpen}
+          updateInfo={pendingUpdate}
+          onClose={() => setIsUpdateModalOpen(false)}
+        />
+      </>
     );
   }
 
@@ -842,6 +884,13 @@ export default function App() {
         settings={roomSettings}
         onUpdateSettings={handleUpdateRoomSettings}
         currentParticipantsCount={participants.length}
+      />
+
+      {/* Update Modal */}
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        updateInfo={pendingUpdate}
+        onClose={() => setIsUpdateModalOpen(false)}
       />
     </>
   );

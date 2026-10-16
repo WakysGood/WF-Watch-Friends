@@ -1,7 +1,7 @@
 {
   "name": "wf-watch-friends",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,13 +9,17 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "cap:sync": "cap sync android",
-    "build:apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../WF-Watch-Friends.apk"
+    "build:apk": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../WF-Watch-Friends.apk",
+    "release:ota": "node scripts/prepare-update.js ota",
+    "release:apk": "node scripts/prepare-update.js apk"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.5",
     "@capacitor/network": "^8.0.1",
+    "@capgo/capacitor-updater": "^8.53.0",
     "canvas-confetti": "^1.9.4",
     "firebase": "^13.0.0",
     "framer-motion": "^14.3.0",
