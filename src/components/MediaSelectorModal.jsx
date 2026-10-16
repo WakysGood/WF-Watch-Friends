@@ -65,6 +65,9 @@ export function MediaSelectorModal({
   const [detectedVideo, setDetectedVideo] = useState(null);
   const [animeServers, setAnimeServers] = useState([]);
 
+  // Guard para evitar doble-ejecución si llegan mensajes duplicados del iframe
+  const isResolvingRef = React.useRef(false);
+
   // Resultados de búsqueda web tipo Google
   const [webSearchResults, setWebSearchResults] = useState([]);
   const [searchingWeb, setSearchingWeb] = useState(false);
@@ -91,32 +94,38 @@ export function MediaSelectorModal({
   }, [isOpen]);
 
   // Escuchar mensajes del script inyectado en el iframe (navegación y videos detectados)
+  // IMPORTANTE: se pasa [] para que el listener se registre solo UNA VEZ y no se duplique en cada render.
   useEffect(() => {
     const handler = (e) => {
-      if (!e.data) return;
+      if (!e.data || !e.data.type) return;
 
       // Servidor de video seleccionado directamente por clic en la página web
       if (e.data.type === 'SERVER_SELECTED' && e.data.url) {
-        const isYT = isYouTubeUrl(e.data.url);
-        const isDirect = isDirectVideoUrl(e.data.url);
-        const serverName = e.data.server || getServerNameFromUrl(e.data.url);
-        handleSelectAndPlay({
-          url: e.data.url,
-          title: e.data.title ? `${e.data.title} (${serverName})` : `Episodio (${serverName})`,
-          type: isYT ? 'youtube' : isDirect ? 'direct' : 'embed',
+        const url = e.data.url;
+        const isYT = url.includes('youtube.com/watch') || url.includes('youtu.be/');
+        const isDirect = isDirectVideoUrl(url);
+        const serverName = e.data.server || getServerNameFromUrl(url);
+        // Usamos la ref de setters para no capturar closures viejos
+        setAnimeServers((prev) => {
+          if (prev.some((s) => s.url === url)) return prev;
+          return [...prev, { server: serverName, url }];
         });
+        // No auto-seleccionamos: dejamos que el usuario elija el servidor desde el banner
         return;
       }
 
       if (e.data.type === 'BROWSE_NAVIGATE' && e.data.url) {
-        navigateToUrl(e.data.url, true);
+        // Actualizar la barra de dirección sin llamar navigateToUrl (evita re-renders en cascada)
+        setAddressInput(e.data.url);
+        setCurrentUrl(e.data.url);
       }
 
       if (e.data.type === 'VIDEO_DETECTED' && e.data.url) {
-        const isYT = isYouTubeUrl(e.data.url);
-        const isDirect = isDirectVideoUrl(e.data.url);
+        const url = e.data.url;
+        const isYT = url.includes('youtube.com/watch') || url.includes('youtu.be/');
+        const isDirect = isDirectVideoUrl(url);
         setDetectedVideo({
-          url: e.data.url,
+          url,
           title: e.data.title || 'Video detectado',
           type: isYT ? 'youtube' : isDirect ? 'direct' : 'embed',
         });
@@ -131,7 +140,7 @@ export function MediaSelectorModal({
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  });
+  }, []); // [] → solo se registra UNA vez, no en cada render
 
   if (!isOpen) return null;
 
@@ -318,28 +327,37 @@ export function MediaSelectorModal({
   };
 
   const handleSelectAndPlay = async (video) => {
-    const isYT = isYouTubeUrl(video.url);
-    let resolvedUrl = video.url;
-    let resolvedType = video.type;
+    // Evitar doble ejecución si se llama dos veces rápido (ej. mensajes duplicados del iframe)
+    if (isResolvingRef.current) return;
+    isResolvingRef.current = true;
 
-    if (isYT) {
-      resolvedType = 'youtube';
-    } else {
-      try {
-        const streamInfo = await resolveMediaStream(video.url);
-        resolvedUrl = streamInfo.url;
-        resolvedType = streamInfo.type;
-      } catch (_) {
-        resolvedType = isDirectVideoUrl(video.url) ? 'direct' : 'embed';
+    try {
+      const isYT = isYouTubeUrl(video.url);
+      let resolvedUrl = video.url;
+      let resolvedType = video.type;
+
+      if (isYT) {
+        resolvedType = 'youtube';
+      } else {
+        try {
+          const streamInfo = await resolveMediaStream(video.url);
+          resolvedUrl = streamInfo.url;
+          resolvedType = streamInfo.type;
+        } catch (_) {
+          resolvedType = isDirectVideoUrl(video.url) ? 'direct' : 'embed';
+        }
       }
-    }
 
-    onSelectMedia({
-      url: resolvedUrl,
-      type: resolvedType || 'embed',
-      title: video.title || 'Video Seleccionado',
-    });
-    onClose();
+      onSelectMedia({
+        url: resolvedUrl,
+        type: resolvedType || 'embed',
+        title: video.title || 'Video Seleccionado',
+      });
+      onClose();
+    } finally {
+      // Resetear el guard después de un pequeño delay para permitir re-uso
+      setTimeout(() => { isResolvingRef.current = false; }, 800);
+    }
   };
 
   const handleAddQueue = (video, e) => {

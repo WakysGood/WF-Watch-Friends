@@ -56,6 +56,8 @@ export const authService = {
             displayName: extraData.username || user.displayName || 'Usuario',
             photoURL: extraData.photoURL || user.photoURL || null,
             friends: extraData.friends || [],
+            incomingRequests: extraData.incomingRequests || [],
+            sentRequests: extraData.sentRequests || [],
           });
         } catch (e) {
           callback({
@@ -64,6 +66,8 @@ export const authService = {
             displayName: user.displayName || 'Usuario',
             photoURL: user.photoURL || null,
             friends: [],
+            incomingRequests: [],
+            sentRequests: [],
           });
         }
       } else {
