@@ -86,7 +86,7 @@ export async function checkForUpdate() {
 /**
  * Descarga y aplica una actualización OTA (código web React en caliente)
  */
-export async function applyOtaUpdate(bundleUrl, version, onProgress) {
+export async function applyOtaUpdate(bundleUrl, version, onProgress, checksum = '') {
   if (!bundleUrl) throw new Error('No se especificó URL del paquete de actualización');
 
   if (!isNative) {
@@ -112,11 +112,16 @@ export async function applyOtaUpdate(bundleUrl, version, onProgress) {
       );
     }
 
-    // Descargar el paquete comprimido
-    const bundle = await CapacitorUpdater.download({
+    const downloadParams = {
       url: bundleUrl,
       version: version || `v-${Date.now()}`,
-    });
+    };
+    if (checksum) {
+      downloadParams.checksum = checksum;
+    }
+
+    // Descargar el paquete comprimido
+    const bundle = await CapacitorUpdater.download(downloadParams);
 
     onProgress?.(95);
 

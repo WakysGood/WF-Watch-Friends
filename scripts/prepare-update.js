@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 
@@ -74,7 +75,12 @@ execSync(`cd dist && zip -r "${zipPath}" ./*`, {
   stdio: 'inherit',
 });
 
-// 4. Guardar version.json actualizado
+// 4. Calcular checksum SHA-256 del zip para CapacitorUpdater v8
+const zipBuffer = fs.readFileSync(zipPath);
+const checksum = crypto.createHash('sha256').update(zipBuffer).digest('hex');
+versionData.checksum = checksum;
+
+// 5. Guardar version.json actualizado
 fs.writeFileSync(
   versionFilePath,
   JSON.stringify(versionData, null, 2) + '\n',
@@ -83,6 +89,7 @@ fs.writeFileSync(
 
 console.log('\n✅ ¡Actualización preparada exitosamente!');
 console.log(`📄 Archivo version.json actualizado.`);
+console.log(`🔑 Checksum SHA-256: ${checksum}`);
 console.log(`📦 Archivo updates/dist.zip generado (${(fs.statSync(zipPath).size / 1024 / 1024).toFixed(2)} MB).`);
 console.log('\nPara publicar los cambios a tus usuarios, solo haz:');
 console.log('  git add .');

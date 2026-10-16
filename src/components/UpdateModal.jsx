@@ -48,7 +48,8 @@ export function UpdateModal({
             } else {
               setStatusText(`Descargando parche: ${Math.round(pct)}%`);
             }
-          }
+          },
+          updateInfo.checksum || ''
         );
       } else {
         setStatusText('Descargando archivo APK...');

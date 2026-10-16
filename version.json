@@ -2,6 +2,7 @@
   "version": "1.0.1",
   "buildNumber": 2,
   "type": "ota",
+  "checksum": "f6eac555782b741da4d68c45bfe176f092edafc6d41bc3c5f0ed81f4dc910fed",
   "title": "Parche v1.0.1 disponible",
   "changelog": "Soporte para servidores de video JKAnime y reproductor sincronizado",
   "bundleUrl": "https://raw.githubusercontent.com/WakysGood/WF-Watch-Friends/main/updates/dist.zip",
