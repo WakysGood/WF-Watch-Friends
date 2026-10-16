@@ -755,54 +755,77 @@ export default function App() {
     setCurrentScreen('auth');
   };
 
-  // ── Manejo global de botón de retroceso (Android Hardware / Gestos / Popstate) ──
-  useEffect(() => {
-    const handleBackAction = () => {
-      // 1. Si el modal del navegador web / YouTube está abierto, cerrarlo
-      if (isMediaModalOpen) {
-        setIsMediaModalOpen(false);
-        return true;
-      }
+  // ── Manejo global de botón y gestos de retroceso en Android ──
+  const lastBackPressRef = useRef(0);
+  const backActionStateRef = useRef({});
+  backActionStateRef.current = {
+    isMediaModalOpen,
+    isUpdateModalOpen,
+    isSettingsModalOpen,
+    currentScreen,
+    pathname: location.pathname,
+  };
 
-      // 2. Si el modal de actualización está abierto, cerrarlo
-      if (isUpdateModalOpen) {
-        setIsUpdateModalOpen(false);
-        return true;
-      }
+  const handleBackAction = useCallback(() => {
+    const state = backActionStateRef.current;
 
-      // 3. Si el modal de configuración de sala está abierto, cerrarlo
-      if (isSettingsModalOpen) {
-        setIsSettingsModalOpen(false);
-        return true;
-      }
+    // 1. Si el modal del navegador / YouTube está abierto, cerrarlo
+    if (state.isMediaModalOpen) {
+      setIsMediaModalOpen(false);
+      return true;
+    }
 
-      // 4. Si el usuario está dentro de una sala en reproducción ('room'), salir al lobby
-      if (currentScreen === 'room') {
-        const confirmExit = window.confirm('¿Deseas salir de la sala de reproducción?');
-        if (confirmExit) {
-          handleLeaveRoom();
-        }
-        return true;
-      }
+    // 2. Si el modal de actualización está abierto, cerrarlo
+    if (state.isUpdateModalOpen) {
+      setIsUpdateModalOpen(false);
+      return true;
+    }
 
-      // 5. Si está en una sub-página (/friends, /chats, /profile, /settings), volver a /lobby
-      if (location.pathname !== '/lobby' && location.pathname !== '/') {
-        navigate('/lobby');
-        return true;
-      }
+    // 3. Si el modal de configuración de sala está abierto, cerrarlo
+    if (state.isSettingsModalOpen) {
+      setIsSettingsModalOpen(false);
+      return true;
+    }
 
-      // Si ya está en /lobby y no hay modales abiertos, permitir la acción por defecto
+    // 4. Si el usuario está dentro de una sala en reproducción ('room'), salir al lobby
+    if (state.currentScreen === 'room') {
+      const confirmExit = window.confirm('¿Deseas salir de la sala de reproducción?');
+      if (confirmExit) {
+        handleLeaveRoom();
+      }
+      return true;
+    }
+
+    // 5. Si está en una sub-página (/friends, /chats, /profile, /settings), volver a /lobby
+    if (state.pathname !== '/lobby' && state.pathname !== '/') {
+      navigate('/lobby');
+      return true;
+    }
+
+    // 6. Si ya está en la pantalla principal del lobby, evitar salir por toque accidental
+    const now = Date.now();
+    if (now - lastBackPressRef.current < 2000) {
+      try {
+        CapApp.exitApp();
+      } catch (_) {}
       return false;
-    };
+    }
+    lastBackPressRef.current = now;
+    return true;
+  }, [handleLeaveRoom, navigate]);
 
-    // 1. Capacitor Nativo Plugin listener (cuando @capacitor/app esté disponible)
-    let appListener = null;
+  useEffect(() => {
+    let capHandle = null;
+
+    // 1. Capacitor Native App plugin listener (gesto de sistema Android y botón físico)
     try {
-      appListener = CapApp.addListener('backButton', ({ canGoBack }) => {
+      CapApp.addListener('backButton', ({ canGoBack }) => {
         const handled = handleBackAction();
         if (!handled && canGoBack) {
           window.history.back();
         }
+      }).then((handle) => {
+        capHandle = handle;
       });
     } catch (_) {}
 
@@ -810,8 +833,8 @@ export default function App() {
     const onBackButton = (e) => {
       const handled = handleBackAction();
       if (handled) {
-        e.preventDefault && e.preventDefault();
-        e.stopPropagation && e.stopPropagation();
+        e.preventDefault?.();
+        e.stopPropagation?.();
       }
     };
 
@@ -820,8 +843,8 @@ export default function App() {
       if (e.key === 'GoBack' || e.keyCode === 4) {
         const handled = handleBackAction();
         if (handled) {
-          e.preventDefault && e.preventDefault();
-          e.stopPropagation && e.stopPropagation();
+          e.preventDefault?.();
+          e.stopPropagation?.();
         }
       }
     };
@@ -830,7 +853,6 @@ export default function App() {
     const onPopState = () => {
       const handled = handleBackAction();
       if (handled) {
-        // Re-insertar ancla en la pila de historial para que el próximo gesto tampoco cierre la app
         window.history.pushState({ app: 'watchfriends-guard' }, '');
       }
     };
@@ -839,28 +861,21 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown, true);
     window.addEventListener('popstate', onPopState);
 
-    return () => {
-      appListener && appListener.remove && appListener.remove();
-      document.removeEventListener('backbutton', onBackButton);
-      window.removeEventListener('keydown', onKeyDown, true);
-      window.removeEventListener('popstate', onPopState);
-    };
-  }, [
-    isMediaModalOpen,
-    isUpdateModalOpen,
-    isSettingsModalOpen,
-    currentScreen,
-    location.pathname,
-    navigate,
-  ]);
-
-  // Asegurar pila de historial activa desde el inicio
-  useEffect(() => {
+    // Asegurar ancla en la pila de historial
     try {
       window.history.replaceState({ app: 'root' }, '');
       window.history.pushState({ app: 'main' }, '');
     } catch (_) {}
-  }, []);
+
+    return () => {
+      if (capHandle && capHandle.remove) {
+        capHandle.remove();
+      }
+      document.removeEventListener('backbutton', onBackButton);
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('popstate', onPopState);
+    };
+  }, [handleBackAction]);
 
   if (isAuthLoading) {
     return (

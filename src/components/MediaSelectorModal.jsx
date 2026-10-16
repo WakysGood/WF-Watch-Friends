@@ -146,8 +146,6 @@ export function MediaSelectorModal({
     return () => window.removeEventListener('message', handler);
   }, []); // [] → solo se registra UNA vez, no en cada render
 
-  if (!isOpen) return null;
-
   // ── Helpers de Detección de Video ─────────────────────────────────
 
   const isYouTubeUrl = (url = '') =>
@@ -409,6 +407,8 @@ export function MediaSelectorModal({
     cursor: 'pointer',
     transition: 'background 0.15s, color 0.15s',
   };
+
+  if (!isOpen) return null;
 
   return (
     <div
