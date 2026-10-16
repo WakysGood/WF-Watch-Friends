@@ -64,7 +64,11 @@ export function SyncedPlayer({
           modestbranding: 1,
           playsinline: 1, // Imprescindible para Android / iOS y evitar pantalla completa forzada
           enablejsapi: 1,
-          origin: window.location.origin,
+          origin:
+            window.location.origin && window.location.origin.startsWith('http')
+              ? window.location.origin
+              : 'https://localhost',
+          host: 'https://www.youtube.com',
         },
         events: {
           onReady: (event) => {
@@ -104,6 +108,12 @@ export function SyncedPlayer({
     if (window.YT && window.YT.Player) {
       setupPlayer();
     } else {
+      if (!document.getElementById('yt-iframe-api-tag')) {
+        const script = document.createElement('script');
+        script.id = 'yt-iframe-api-tag';
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(script);
+      }
       const checkInterval = setInterval(() => {
         if (window.YT && window.YT.Player) {
           clearInterval(checkInterval);

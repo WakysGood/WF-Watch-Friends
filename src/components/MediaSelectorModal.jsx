@@ -19,6 +19,12 @@ import {
   ExternalLink,
   Film,
 } from 'lucide-react';
+import {
+  searchYouTubeVideos,
+  searchWeb,
+  fetchWebPageHtml,
+  openInSystemBrowser,
+} from '../services/mediaSearchService';
 
 const YT_CATEGORIES = [
   { label: 'Tendencias', query: 'tendencias videos 2026', icon: Flame },
@@ -47,6 +53,8 @@ export function MediaSelectorModal({
   const [addressInput, setAddressInput] = useState('');
   const [currentUrl, setCurrentUrl] = useState('');
   const [iframeSrc, setIframeSrc] = useState('');
+  const [iframeDoc, setIframeDoc] = useState('');
+  const [browseError, setBrowseError] = useState('');
   const [browserLoading, setBrowserLoading] = useState(false);
   const [navHistory, setNavHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -62,9 +70,8 @@ export function MediaSelectorModal({
   const fetchYouTubeVideos = async (query) => {
     setYtLoading(true);
     try {
-      const res = await fetch(`/api/yt-search?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      setYtVideos(data.videos || []);
+      const videos = await searchYouTubeVideos(query);
+      setYtVideos(videos || []);
     } catch (e) {
       console.warn('YT fetch error:', e);
       setYtVideos([]);
@@ -124,7 +131,7 @@ export function MediaSelectorModal({
   // ── Navegación Web ───────────────────────────────────────────────
 
   // Navegar a una página web real (dentro del iframe)
-  const navigateToUrl = (targetUrl, pushHistory = true) => {
+  const navigateToUrl = async (targetUrl, pushHistory = true) => {
     if (!targetUrl) return;
     let url = targetUrl.trim();
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -135,6 +142,7 @@ export function MediaSelectorModal({
     setCurrentUrl(url);
     setWebSearchResults([]); // ocultar resultados de búsqueda para mostrar la página
     setAnimeServers([]);
+    setBrowseError('');
 
     if (pushHistory) {
       setNavHistory((prev) => {
@@ -154,6 +162,7 @@ export function MediaSelectorModal({
         type: 'youtube',
       });
       setIframeSrc('');
+      setIframeDoc('');
       setBrowserLoading(false);
       return;
     }
@@ -166,13 +175,26 @@ export function MediaSelectorModal({
         type: 'direct',
       });
       setIframeSrc('');
+      setIframeDoc('');
       setBrowserLoading(false);
       return;
     }
 
     setDetectedVideo(null);
     setBrowserLoading(true);
-    setIframeSrc(`/api/browse?url=${encodeURIComponent(url)}`);
+
+    try {
+      const { html } = await fetchWebPageHtml(url);
+      setIframeDoc(html);
+      setIframeSrc('');
+    } catch (err) {
+      console.warn('Browse error:', err);
+      setIframeDoc('');
+      setIframeSrc(url);
+      setBrowseError('Si la página tiene protección antibot o no carga aquí, ábrela en el navegador externo con el botón 🌐.');
+    } finally {
+      setBrowserLoading(false);
+    }
   };
 
   // Buscar en la Web (muestra resultados de búsqueda reales tipo Google)
@@ -190,12 +212,13 @@ export function MediaSelectorModal({
     setSearchingWeb(true);
     setSearchQuery(q);
     setIframeSrc('');
+    setIframeDoc('');
+    setBrowseError('');
     setDetectedVideo(null);
     setAnimeServers([]);
     try {
-      const res = await fetch(`/api/web-search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setWebSearchResults(data.results || []);
+      const results = await searchWeb(q);
+      setWebSearchResults(results || []);
     } catch (e) {
       console.warn('Web search error:', e);
       setWebSearchResults([]);
@@ -215,9 +238,11 @@ export function MediaSelectorModal({
       const newIdx = historyIndex - 1;
       setHistoryIndex(newIdx);
       navigateToUrl(navHistory[newIdx], false);
-    } else if (webSearchResults.length > 0 || iframeSrc) {
+    } else if (webSearchResults.length > 0 || iframeSrc || iframeDoc) {
       // Volver a la pantalla de inicio de Google
       setIframeSrc('');
+      setIframeDoc('');
+      setBrowseError('');
       setWebSearchResults([]);
       setAddressInput('');
       setCurrentUrl('');
@@ -240,6 +265,8 @@ export function MediaSelectorModal({
 
   const handleHomeClick = () => {
     setIframeSrc('');
+    setIframeDoc('');
+    setBrowseError('');
     setWebSearchResults([]);
     setAddressInput('');
     setCurrentUrl('');
@@ -511,9 +538,9 @@ export function MediaSelectorModal({
             >
               <button
                 onClick={handleBack}
-                disabled={historyIndex <= 0 && !iframeSrc && webSearchResults.length === 0}
+                disabled={historyIndex <= 0 && !iframeSrc && !iframeDoc && webSearchResults.length === 0}
                 title="Atrás"
-                style={{ ...navBtnBase, color: (historyIndex <= 0 && !iframeSrc && webSearchResults.length === 0) ? '#334155' : '#94a3b8' }}
+                style={{ ...navBtnBase, color: (historyIndex <= 0 && !iframeSrc && !iframeDoc && webSearchResults.length === 0) ? '#334155' : '#94a3b8' }}
               >
                 <ArrowLeft size={18} />
               </button>
@@ -530,6 +557,14 @@ export function MediaSelectorModal({
               </button>
               <button onClick={handleHomeClick} title="Inicio de Google" style={{ ...navBtnBase, color: '#64748b' }}>
                 <Home size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => openInSystemBrowser(currentUrl || addressInput || 'https://www.google.com')}
+                title="Abrir en navegador externo (Chrome/Navegador del sistema)"
+                style={{ ...navBtnBase, color: '#00d2ff' }}
+              >
+                <ExternalLink size={16} />
               </button>
 
               {/* Barra de Direcciones / Búsqueda */}
@@ -649,7 +684,7 @@ export function MediaSelectorModal({
             <div style={{ flex: 1, position: 'relative', background: '#0a0f1e', overflowY: 'auto' }}>
 
               {/* 1. Pantalla de Inicio de Google (cuando no hay búsqueda ni iframe cargado) */}
-              {!iframeSrc && !searchingWeb && webSearchResults.length === 0 && (
+              {!iframeSrc && !iframeDoc && !searchingWeb && webSearchResults.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '50px 24px', maxWidth: 500, margin: '0 auto' }}>
                   {/* Logo de Google */}
                   <div style={{ fontSize: '2.8rem', fontWeight: 800, letterSpacing: -1, marginBottom: 14 }}>
@@ -684,7 +719,7 @@ export function MediaSelectorModal({
               )}
 
               {/* 2. Resultados de Búsqueda Web Tipo Google (Páginas reales) */}
-              {!iframeSrc && webSearchResults.length > 0 && (
+              {!iframeSrc && !iframeDoc && webSearchResults.length > 0 && (
                 <div style={{ padding: '18px 24px', maxWidth: 740, margin: '0 auto' }}>
                   <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: 14 }}>
                     Resultados web para <strong style={{ color: '#00d2ff' }}>"{searchQuery}"</strong> — Toca cualquier enlace para entrar y navegar en la página:
@@ -779,11 +814,25 @@ export function MediaSelectorModal({
                 </div>
               )}
 
-              {/* 4. El Navegador Web Real (sin restricciones de sandbox bloqueantes) */}
-              {iframeSrc && (
+              {/* Mensaje de error/ayuda si la página externa tiene bloqueo antibot */}
+              {browseError && (
+                <div style={{ padding: '8px 14px', background: 'rgba(239,68,68,0.18)', borderBottom: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <span>{browseError}</span>
+                  <button
+                    onClick={() => openInSystemBrowser(currentUrl || addressInput)}
+                    style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}
+                  >
+                    <ExternalLink size={12} /> Abrir fuera
+                  </button>
+                </div>
+              )}
+
+              {/* 4. El Navegador Web Real */}
+              {(iframeDoc || iframeSrc) && (
                 <iframe
-                  key={iframeSrc}
-                  src={iframeSrc}
+                  key={currentUrl || iframeSrc || 'doc'}
+                  srcDoc={iframeDoc || undefined}
+                  src={!iframeDoc ? iframeSrc : undefined}
                   title="Navegador Web Interno"
                   onLoad={() => setBrowserLoading(false)}
                   onError={() => setBrowserLoading(false)}
