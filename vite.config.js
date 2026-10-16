@@ -343,20 +343,7 @@ function videoSearchProxyPlugin() {
       var sName = el.textContent.trim() || 'Servidor';
       var dataId = el.getAttribute('data-id');
 
-      // JKAnime window.servers
-      if (dataId !== null && window.servers && window.servers[dataId] && window.servers[dataId].remote) {
-        try {
-          var dec = atob(window.servers[dataId].remote.trim());
-          if (dec && dec.indexOf('http') === 0) {
-            e.preventDefault();
-            e.stopPropagation();
-            notify('SERVER_SELECTED', { url: dec, server: window.servers[dataId].server || sName, title: document.title });
-            return false;
-          }
-        } catch(_) {}
-      }
-
-      // JKAnime window.video
+      // JKAnime window.video (reproductores nativos directos como Desu y Magi)
       if (dataId !== null && window.video && window.video[dataId]) {
         var vHtml = window.video[dataId];
         var matchSrc = vHtml.match(/src=["']([^"']+)["']/);
@@ -368,6 +355,19 @@ function videoSearchProxyPlugin() {
           notify('SERVER_SELECTED', { url: srcUrl, server: sName, title: document.title });
           return false;
         }
+      }
+
+      // JKAnime window.servers (servidores de respaldo como Mega, Streamwish, etc.)
+      if (dataId !== null && window.servers && window.servers[dataId] && window.servers[dataId].remote) {
+        try {
+          var dec = atob(window.servers[dataId].remote.trim());
+          if (dec && dec.indexOf('http') === 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            notify('SERVER_SELECTED', { url: dec, server: window.servers[dataId].server || sName, title: document.title });
+            return false;
+          }
+        } catch(_) {}
       }
     }
 

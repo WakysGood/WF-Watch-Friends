@@ -27,6 +27,7 @@ import {
   isVideoServerUrl,
   isDirectVideoUrl,
   getServerNameFromUrl,
+  resolveMediaStream,
 } from '../services/mediaSearchService';
 
 const YT_CATEGORIES = [
@@ -316,14 +317,26 @@ export function MediaSelectorModal({
     fetchYouTubeVideos(cat.query);
   };
 
-  const handleSelectAndPlay = (video) => {
+  const handleSelectAndPlay = async (video) => {
     const isYT = isYouTubeUrl(video.url);
-    const isDirect = isDirectVideoUrl(video.url);
-    const resolvedType = video.type || (isYT ? 'youtube' : isDirect ? 'direct' : 'embed');
+    let resolvedUrl = video.url;
+    let resolvedType = video.type;
+
+    if (isYT) {
+      resolvedType = 'youtube';
+    } else {
+      try {
+        const streamInfo = await resolveMediaStream(video.url);
+        resolvedUrl = streamInfo.url;
+        resolvedType = streamInfo.type;
+      } catch (_) {
+        resolvedType = isDirectVideoUrl(video.url) ? 'direct' : 'embed';
+      }
+    }
 
     onSelectMedia({
-      url: video.url,
-      type: resolvedType,
+      url: resolvedUrl,
+      type: resolvedType || 'embed',
       title: video.title || 'Video Seleccionado',
     });
     onClose();

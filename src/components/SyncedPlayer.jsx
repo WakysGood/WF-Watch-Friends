@@ -4,6 +4,7 @@ import {
   isVideoServerUrl,
   isDirectVideoUrl,
   getServerNameFromUrl,
+  openInSystemBrowser,
 } from '../services/mediaSearchService';
 
 // Helper to extract YouTube video ID
@@ -294,22 +295,40 @@ export function SyncedPlayer({
         </span>
 
         {isEmbed && (
-          <button
-            onClick={() => setEmbedKey(k => k + 1)}
-            title="Recargar reproductor del servidor"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              color: 'var(--text-muted)',
-              padding: '2px 4px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-            }}
-          >
-            <RefreshCw size={13} />
-          </button>
+          <>
+            <button
+              onClick={() => setEmbedKey(k => k + 1)}
+              title="Recargar reproductor del servidor"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--text-muted)',
+                padding: '2px 4px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+              }}
+            >
+              <RefreshCw size={13} />
+            </button>
+            <button
+              onClick={() => openInSystemBrowser(media.url)}
+              title="Abrir este reproductor en navegador externo (Chrome)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                color: 'var(--accent-cyan, #00d2ff)',
+                padding: '2px 4px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                background: 'none',
+                border: 'none',
+              }}
+            >
+              <ExternalLink size={13} />
+            </button>
+          </>
         )}
 
         {!isHost && !isEmbed && (
@@ -347,6 +366,7 @@ export function SyncedPlayer({
               background: '#000',
               display: 'block',
             }}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
             allowFullScreen
             referrerPolicy="no-referrer"

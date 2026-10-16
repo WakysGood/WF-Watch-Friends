@@ -320,6 +320,49 @@ export function isDirectVideoUrl(url = '') {
 }
 
 /**
+ * Resuelve una URL de video o reproductor a su stream directo (.m3u8 / .mp4) si es posible
+ */
+export async function resolveMediaStream(mediaUrl) {
+  if (!mediaUrl) return { url: mediaUrl, type: 'embed' };
+
+  if (isDirectVideoUrl(mediaUrl)) {
+    return { url: mediaUrl, type: 'direct' };
+  }
+
+  // Resolver JKPlayer (Desu / Magi de JKAnime) para extraer el stream HLS .m3u8 directo
+  if (mediaUrl.includes('jkanime.net/jkplayer/')) {
+    try {
+      let html = '';
+      if (isNative) {
+        const res = await CapacitorHttp.get({
+          url: mediaUrl,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            Referer: 'https://jkanime.net/',
+          },
+        });
+        html = typeof res.data === 'string' ? res.data : '';
+      } else {
+        const res = await fetch(`/api/browse?url=${encodeURIComponent(mediaUrl)}`);
+        if (res.ok) html = await res.text();
+      }
+
+      if (html) {
+        const m3u8Match = html.match(/(https:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*)/);
+        if (m3u8Match && m3u8Match[1]) {
+          return { url: m3u8Match[1], type: 'direct' };
+        }
+      }
+    } catch (e) {
+      console.warn('Error al extraer stream m3u8 de jkplayer:', e);
+    }
+  }
+
+  return { url: mediaUrl, type: 'embed' };
+}
+
+/**
  * Obtiene el nombre legible de un servidor de video a partir de su URL
  */
 export function getServerNameFromUrl(url = '') {
@@ -338,7 +381,7 @@ export function getServerNameFromUrl(url = '') {
   if (lower.includes('yourupload')) return 'YourUpload';
   if (lower.includes('1fichier')) return '1Fichier';
   if (lower.includes('fembed') || lower.includes('feurl')) return 'Fembed';
-  if (lower.includes('jkplayer')) return 'JKPlayer';
+  if (lower.includes('jkplayer')) return 'JKAnime (Nativo)';
   try {
     const host = new URL(url).hostname.replace('www.', '').split('.')[0];
     return host ? host.charAt(0).toUpperCase() + host.slice(1) : 'Servidor';
@@ -431,20 +474,7 @@ function getInjectedScript() {
       var sName = el.textContent.trim() || 'Servidor';
       var dataId = el.getAttribute('data-id');
 
-      // JKAnime window.servers
-      if (dataId !== null && window.servers && window.servers[dataId] && window.servers[dataId].remote) {
-        try {
-          var dec = atob(window.servers[dataId].remote.trim());
-          if (dec && dec.indexOf('http') === 0) {
-            e.preventDefault();
-            e.stopPropagation();
-            notify('SERVER_SELECTED', { url: dec, server: window.servers[dataId].server || sName, title: document.title });
-            return false;
-          }
-        } catch(_) {}
-      }
-
-      // JKAnime window.video
+      // JKAnime window.video (reproductores nativos directos como Desu y Magi)
       if (dataId !== null && window.video && window.video[dataId]) {
         var vHtml = window.video[dataId];
         var matchSrc = vHtml.match(/src=["']([^"']+)["']/);
@@ -456,6 +486,19 @@ function getInjectedScript() {
           notify('SERVER_SELECTED', { url: srcUrl, server: sName, title: document.title });
           return false;
         }
+      }
+
+      // JKAnime window.servers (servidores de respaldo como Mega, Streamwish, etc.)
+      if (dataId !== null && window.servers && window.servers[dataId] && window.servers[dataId].remote) {
+        try {
+          var dec = atob(window.servers[dataId].remote.trim());
+          if (dec && dec.indexOf('http') === 0) {
+            e.preventDefault();
+            e.stopPropagation();
+            notify('SERVER_SELECTED', { url: dec, server: window.servers[dataId].server || sName, title: document.title });
+            return false;
+          }
+        } catch(_) {}
       }
     }
 
